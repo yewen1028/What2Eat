@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
-import MapView, { Circle, Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import { StyleSheet, View } from 'react-native';
+import MapView, { Circle, Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 
 import { useTheme } from '../../theme/theme';
 import { radius, space } from '../../theme/tokens';
 import { Txt } from '../Txt';
+import { canRenderGoogleMaps } from './capability';
 import { darkMapStyle, lightMapStyle } from './darkMapStyle';
+import { SchematicMap } from './SchematicMap';
 import { MapSurfaceProps } from './types';
 
 /** Degrees of latitude per metre — good enough for a city-scale viewport. */
@@ -21,7 +23,14 @@ function regionFor(origin: { lat: number; lng: number }, radiusMetres: number): 
   };
 }
 
-export function MapSurface({
+export function MapSurface(props: MapSurfaceProps) {
+  // An empty grey rectangle is a worse answer than an honest schematic, and
+  // quietly dropping back to Apple Maps is not an option.
+  if (!canRenderGoogleMaps) return <SchematicMap {...props} />;
+  return <GoogleMap {...props} />;
+}
+
+function GoogleMap({
   origin,
   markers,
   selectedId,
@@ -54,10 +63,12 @@ export function MapSurface({
     <MapView
       ref={mapRef}
       style={StyleSheet.absoluteFill}
-      provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
+      // Google Maps on both platforms, so the map matches the listings and
+      // looks the same everywhere. On iOS this needs a development build with
+      // a Maps SDK key — Expo Go only bundles the Apple Maps provider.
+      provider={PROVIDER_GOOGLE}
       initialRegion={initialRegion}
       customMapStyle={isDark ? darkMapStyle : lightMapStyle}
-      userInterfaceStyle={isDark ? 'dark' : 'light'}
       showsUserLocation
       showsMyLocationButton={false}
       showsCompass={false}

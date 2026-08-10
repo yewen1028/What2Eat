@@ -24,47 +24,85 @@ npx expo start
 
 Then press `i` / `a`, or scan the QR code with Expo Go.
 
-The app works immediately with **no API key**: it builds a hand-written sample
-neighbourhood laid out around wherever you actually are, so distances, opening
-hours and ranking all exercise the real code paths. If you decline the location
-permission, "Browse a demo neighbourhood" gives you a fixed origin to explore.
+The app runs with **no API key**, but read the next section before you trust
+what it shows you.
 
-## Using live restaurant data
+## Real restaurants vs. sample data
 
-Add a **Google Places API (New)** key — enable *Places API (New)* in Google
-Cloud and restrict the key to your bundle identifiers.
+**Without a Places key the restaurants are fictional.** The built-in dataset is
+hand-written — invented names, invented ratings, invented hours — laid out
+around your real position so that distance, opening-hours and ranking logic all
+exercise real code paths. It is never presented as real: a **SAMPLE** badge sits
+on the Now masthead, the Nearby header, the map header and every detail page for
+as long as that data is in use.
 
-Either put it in `app.json`:
+Real names, ratings and hours come from Google. Two ways to switch over:
 
-```json
-"extra": { "googlePlacesApiKey": "YOUR_KEY" }
-```
+**In the app** — *You → Listings → Google Places API key*. Paste a key with
+*Places API (New)* enabled and the listings swap immediately, no rebuild. The
+key is stored on the device and only ever sent to Google.
 
-or set an environment variable:
+**At build time** — set the environment variable before starting:
 
 ```
 EXPO_PUBLIC_GOOGLE_PLACES_API_KEY=YOUR_KEY
 ```
 
-The app switches over automatically. If a live request fails or returns nothing
-nearby, it falls back to the sample data and says so inline rather than showing
-an empty screen.
+If a live request fails or returns nothing in range, the app falls back to the
+sample data, re-shows the badge, and surfaces the actual error rather than
+quietly serving invented places as real ones.
 
 To add another provider (Foursquare, Yelp, your own backend), write a function
 that returns `Place[]` and wire it into `src/lib/places.ts` — that file is the
 only place the rest of the app talks to.
 
+## Google Maps keys
+
+The map and the listings use **separate** Google APIs, and it's easy to conflate
+them:
+
+| Key | Read | Needs | Where |
+|---|---|---|---|
+| Maps SDK | at **build** time | Maps SDK for iOS + Android | `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` |
+| Places | at **runtime** | Places API (New) | env var *or* the in-app field |
+
+One key can serve both if you enable all three APIs on it.
+
+```
+EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=YOUR_KEY npx expo start
+```
+
+`app.config.ts` reads these and writes the Maps key into `ios.config.googleMapsApiKey`
+and `android.config.googleMaps.apiKey`.
+
 ## The map
 
-`react-native-maps` on iOS and Android: Apple Maps on iOS, Google Maps on
-Android, restyled per colour scheme with POI clutter switched off so our own
-pins are the only labels competing for attention. Restaurant **names are drawn
-on the pins** rather than hidden behind a callout tap — the point is to read the
-neighbourhood at a glance. The top three matches take the accent; closed places
-are dimmed; tapping a pin raises a card with rating, distance and directions.
+**Google Maps on both platforms** (`PROVIDER_GOOGLE`), restyled per colour
+scheme with POI clutter switched off so our own pins are the only labels
+competing for attention. Restaurant **names are drawn on the pins** rather than
+hidden behind a callout tap — the point is to read the neighbourhood at a
+glance. The top three matches take the accent; closed places are dimmed; tapping
+a pin raises a card with rating, distance and directions. "Directions" hands off
+to the Google Maps app (`comgooglemaps://` on iOS, `google.navigation:` on
+Android) and falls back to Google Maps on the web — never Apple Maps.
 
-**Android release builds need a Google Maps key** (Expo Go and iOS do not). Add
-it under `expo.android.config.googleMaps.apiKey` in `app.json`.
+> **Google Maps on iOS needs a development build.** Expo Go bundles only the
+> Apple Maps provider, so `PROVIDER_GOOGLE` would render an empty grey view.
+> Run `npx expo run:ios` (or an EAS dev build) with
+> `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` set. Android needs the same key for release
+> builds; Google Maps works in Expo Go there already.
+
+Rather than render blank — or quietly drop back to Apple Maps — the app detects
+this and shows the schematic instead, with a line explaining why.
+`src/components/map/capability.ts` owns that decision, so the Map tab is
+functional in Expo Go, in a dev build, and on the web:
+
+| Environment | Map surface |
+|---|---|
+| iOS dev build + Maps key | Google Maps |
+| iOS Expo Go | schematic + explanation |
+| Android (Expo Go or build) | Google Maps |
+| Web | schematic |
 
 On **web**, `react-native-maps` has no implementation, so `MapSurface.web.tsx`
 takes over via Metro's platform resolution: a schematic that plots every place

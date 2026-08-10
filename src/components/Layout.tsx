@@ -47,6 +47,27 @@ export function EmptyState({ iconName, title, body, action }: EmptyStateProps) {
   );
 }
 
+/**
+ * Marks listings that are the built-in fictional dataset rather than real
+ * Google results. It appears on every surface that shows a place name, because
+ * the one thing the app must never do is let invented restaurants pass for
+ * real ones.
+ */
+export function SampleDataBadge({ compact }: { compact?: boolean }) {
+  const { c } = useTheme();
+  return (
+    <View
+      style={[styles.sampleBadge, { backgroundColor: c.cautionSoft }]}
+      accessibilityLabel="Sample data: these are not real restaurants"
+    >
+      <Ionicons name="flask-outline" size={icon.sm - 3} color={c.caution} />
+      <Txt variant="labelBold" color={c.caution} uppercase style={{ marginLeft: 5 }}>
+        {compact ? 'Sample' : 'Sample data'}
+      </Txt>
+    </View>
+  );
+}
+
 /** Non-blocking inline notice (fallback data, provider errors). */
 export function Notice({ text, tone = 'neutral' }: { text: string; tone?: 'neutral' | 'caution' }) {
   const { c } = useTheme();
@@ -88,6 +109,14 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
     textAlign: 'center',
     maxWidth: 320,
+  },
+  sampleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: space.sm,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
   },
   notice: {
     flexDirection: 'row',

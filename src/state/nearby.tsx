@@ -27,6 +27,8 @@ interface NearbyValue {
   areaName: string | null;
   usingDemoLocation: boolean;
   source: PlacesSource;
+  /** True when the listings are real Google Places results. */
+  isLiveData: boolean;
   warning: string | null;
   loading: boolean;
   refreshing: boolean;
@@ -101,7 +103,8 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, []);
 
-  const fetchPlaces = useCallback(async (coords: Coords, isRefresh = false) => {
+  const fetchPlaces = useCallback(
+    async (coords: Coords, isRefresh = false) => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -111,7 +114,12 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      const result = await loadPlaces(coords, SEARCH_RADIUS_M, controller.signal);
+      const result = await loadPlaces(
+        coords,
+        SEARCH_RADIUS_M,
+        profile.placesApiKey,
+        controller.signal,
+      );
       if (controller.signal.aborted) return;
       setPlaces(result.places);
       setSource(result.source);
@@ -127,7 +135,9 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
         setRefreshing(false);
       }
     }
-  }, []);
+    },
+    [profile.placesApiKey],
+  );
 
   const resolveAreaName = useCallback(async (coords: Coords) => {
     try {
@@ -185,6 +195,16 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  // Pasting (or clearing) a Places key should swap the data immediately rather
+  // than waiting for the next pull-to-refresh.
+  const lastKeyRef = useRef(profile.placesApiKey);
+  useEffect(() => {
+    if (!profileHydrated || !origin) return;
+    if (lastKeyRef.current === profile.placesApiKey) return;
+    lastKeyRef.current = profile.placesApiKey;
+    void fetchPlaces(origin, true);
+  }, [profile.placesApiKey, profileHydrated, origin, fetchPlaces]);
+
   const suggestions = useMemo(
     () => (origin ? rank(places, origin, now, filters) : []),
     [places, origin, now, filters],
@@ -211,6 +231,7 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
       areaName,
       usingDemoLocation,
       source,
+      isLiveData: source === 'google',
       warning,
       loading,
       refreshing,

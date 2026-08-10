@@ -9,12 +9,13 @@ import { Button } from '../../src/components/Button';
 import { FilterChip } from '../../src/components/FilterChip';
 import { Notice, SCREEN_PADDING, SectionHeader } from '../../src/components/Layout';
 import { Toggle } from '../../src/components/Toggle';
+import { Touchable } from '../../src/components/Touchable';
 import { Txt } from '../../src/components/Txt';
 import { useNearby } from '../../src/state/nearby';
 import { initialsFor, useProfile } from '../../src/state/profile';
 import { useSaved } from '../../src/state/saved';
 import { useTheme } from '../../src/theme/theme';
-import { fonts, icon, radius, space } from '../../src/theme/tokens';
+import { fonts, icon, MIN_TAP, radius, space } from '../../src/theme/tokens';
 
 const WALK_OPTIONS = [5, 10, 20, 40];
 const RATING_OPTIONS = [0, 4, 4.3, 4.5];
@@ -36,7 +37,7 @@ export default function ProfileScreen() {
     status,
     areaName,
     usingDemoLocation,
-    source,
+    isLiveData,
     places,
     suggestions,
     filtersChanged,
@@ -186,8 +187,9 @@ export default function ProfileScreen() {
         <InfoRow
           iconName="server-outline"
           label="Listings"
-          value={source === 'google' ? 'Google Places' : 'Sample data'}
+          value={isLiveData ? 'Google Places (real)' : 'Sample data (not real)'}
         />
+        <PlacesKeyField />
         <View style={[styles.chipWrap, { marginTop: space.lg }]}>
           <Button
             label={usingDemoLocation || status !== 'ready' ? 'Use my real location' : 'Refresh position'}
@@ -295,6 +297,103 @@ function Identity() {
           {subtitle || 'Tap your name to change it'}
         </Txt>
       </View>
+    </View>
+  );
+}
+
+/**
+ * Real restaurant names can only come from Google — the app will not invent
+ * them. Accepting the key here means a user can switch to real listings without
+ * rebuilding the app.
+ */
+function PlacesKeyField() {
+  const { c } = useTheme();
+  const { profile, update } = useProfile();
+  const { isLiveData, warning, refreshing } = useNearby();
+
+  const [draft, setDraft] = useState(profile.placesApiKey);
+  const [revealed, setRevealed] = useState(false);
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => setDraft(profile.placesApiKey), [profile.placesApiKey]);
+
+  const dirty = draft.trim() !== profile.placesApiKey;
+  const hasKey = profile.placesApiKey.length > 0;
+
+  return (
+    <View style={{ marginTop: space.lg }}>
+      <Txt variant="smallStrong">Google Places API key</Txt>
+      <Txt variant="small" tone="muted" style={{ marginTop: 2 }}>
+        Enable “Places API (New)” in Google Cloud, then paste the key here to
+        replace the sample data with real restaurants around you. It is kept on this device and
+        only ever sent to Google.
+      </Txt>
+
+      <View style={styles.keyRow}>
+        <TextInput
+          value={draft}
+          onChangeText={setDraft}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder="AIza…"
+          placeholderTextColor={c.textFaint}
+          autoCapitalize="none"
+          autoCorrect={false}
+          secureTextEntry={!revealed}
+          accessibilityLabel="Google Places API key"
+          style={[
+            styles.keyInput,
+            {
+              color: c.text,
+              backgroundColor: c.surface,
+              borderColor: focused ? c.accent : c.border,
+            },
+          ]}
+        />
+        <Touchable
+          accessibilityRole="button"
+          accessibilityLabel={revealed ? 'Hide the key' : 'Show the key'}
+          accessibilityState={{ selected: revealed }}
+          onPress={() => setRevealed((r) => !r)}
+          style={styles.keyReveal}
+        >
+          <Ionicons name={revealed ? 'eye-off-outline' : 'eye-outline'} size={icon.md} color={c.textMuted} />
+        </Touchable>
+      </View>
+
+      <View style={[styles.chipWrap, { marginTop: space.md }]}>
+        <Button
+          label={refreshing ? 'Checking…' : 'Save & use'}
+          iconName="key-outline"
+          disabled={!dirty || refreshing}
+          onPress={() => update({ placesApiKey: draft.trim() })}
+        />
+        {hasKey ? (
+          <Button
+            label="Remove key"
+            variant="ghost"
+            onPress={() => {
+              setDraft('');
+              update({ placesApiKey: '' });
+            }}
+          />
+        ) : null}
+      </View>
+
+      {hasKey && !isLiveData ? (
+        <View style={{ marginTop: space.md }}>
+          <Notice
+            tone="caution"
+            text={warning ?? 'That key did not return live results. Check that Places API (New) is enabled and the key is unrestricted for this app.'}
+          />
+        </View>
+      ) : null}
+
+      {isLiveData ? (
+        <View style={{ marginTop: space.md }}>
+          <Chip label="Live Google listings" iconName="checkmark-circle-outline" tone="accent" />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -424,6 +523,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   nameRow: { flexDirection: 'row', alignItems: 'center' },
+  keyRow: { flexDirection: 'row', alignItems: 'center', marginTop: space.md },
+  keyInput: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: 15,
+    minHeight: 48,
+    paddingHorizontal: space.md,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  keyReveal: {
+    width: MIN_TAP,
+    height: MIN_TAP,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: space.xs,
+  },
   nameInput: {
     flexShrink: 1,
     fontFamily: fonts.display,

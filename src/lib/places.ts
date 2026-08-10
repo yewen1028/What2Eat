@@ -9,11 +9,12 @@ export type PlacesSource = 'google' | 'sample';
 export interface PlacesResult {
   places: Place[];
   source: PlacesSource;
-  /** Set when a live provider was configured but failed, and we fell back. */
+  /** Set when a key was configured but the request did not yield live data. */
   warning?: string;
 }
 
-function apiKey(): string | undefined {
+/** A key shipped with the build, via `extra` or `EXPO_PUBLIC_…`. */
+export function buildTimeKey(): string | undefined {
   const fromExtra = (Constants.expoConfig?.extra as Record<string, unknown> | undefined)
     ?.googlePlacesApiKey;
   const key =
@@ -22,21 +23,27 @@ function apiKey(): string | undefined {
   return key && key.trim().length > 0 ? key.trim() : undefined;
 }
 
-export function hasLiveProvider(): boolean {
-  return apiKey() !== undefined;
+/** The key actually used: whatever the user entered wins over the build's. */
+export function resolveKey(runtimeKey?: string): string | undefined {
+  const trimmed = runtimeKey?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : buildTimeKey();
 }
 
 /**
- * Single entry point for restaurant data. Uses Google Places when a key is
- * configured and falls back to the built-in neighbourhood otherwise, so the
- * app is never a dead end.
+ * Single entry point for restaurant data.
+ *
+ * With a Places key this returns real Google listings — real names, real
+ * ratings, real opening hours. Without one it returns the built-in sample
+ * neighbourhood, which is fictional and is labelled as such everywhere it is
+ * shown; the app never presents invented places as real ones.
  */
 export async function loadPlaces(
   origin: Coords,
   radiusMetres: number,
+  runtimeKey?: string,
   signal?: AbortSignal,
 ): Promise<PlacesResult> {
-  const key = apiKey();
+  const key = resolveKey(runtimeKey);
   if (!key) return { places: samplePlaces(origin), source: 'sample' };
 
   try {
@@ -45,7 +52,7 @@ export async function loadPlaces(
       return {
         places: samplePlaces(origin),
         source: 'sample',
-        warning: 'No live results nearby — showing the sample neighbourhood.',
+        warning: 'Google returned no places within range — showing sample data instead.',
       };
     }
     return { places, source: 'google' };
@@ -54,7 +61,10 @@ export async function loadPlaces(
     return {
       places: samplePlaces(origin),
       source: 'sample',
-      warning: error instanceof Error ? error.message : 'Live results unavailable.',
+      warning:
+        error instanceof Error
+          ? `Live listings unavailable: ${error.message}`
+          : 'Live listings unavailable.',
     };
   }
 }

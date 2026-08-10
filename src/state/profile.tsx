@@ -20,6 +20,12 @@ export interface Profile {
   priceLevels: number[];
   openOnly: boolean;
   hapticsEnabled: boolean;
+  /**
+   * Google Places API key entered in the app, so real listings do not require
+   * rebuilding. Stored on this device only and never sent anywhere except
+   * Google's Places endpoint.
+   */
+  placesApiKey: string;
 }
 
 export const DEFAULT_PROFILE: Profile = {
@@ -30,6 +36,7 @@ export const DEFAULT_PROFILE: Profile = {
   priceLevels: [1, 2, 3, 4],
   openOnly: true,
   hapticsEnabled: true,
+  placesApiKey: '',
 };
 
 /**
@@ -91,7 +98,14 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo<ProfileValue>(
-    () => ({ profile, hydrated, update, reset: () => persist(DEFAULT_PROFILE) }),
+    () => ({
+      profile,
+      hydrated,
+      update,
+      // Resetting preferences should not silently throw away a key the user
+      // pasted in — that is credentials, not a preference.
+      reset: () => persist({ ...DEFAULT_PROFILE, placesApiKey: profile.placesApiKey }),
+    }),
     [profile, hydrated, update, persist],
   );
 

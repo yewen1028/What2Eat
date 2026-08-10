@@ -11,7 +11,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../src/components/Button';
 import { Chip } from '../../src/components/Badges';
 import { HeroPick } from '../../src/components/HeroPick';
-import { EmptyState, Notice, SCREEN_PADDING, SectionHeader } from '../../src/components/Layout';
+import {
+  EmptyState,
+  Notice,
+  SampleDataBadge,
+  SCREEN_PADDING,
+  SectionHeader,
+} from '../../src/components/Layout';
 import { Logo } from '../../src/components/Logo';
 import { PlaceRow } from '../../src/components/PlaceRow';
 import { HeroSkeleton, RowSkeleton } from '../../src/components/Skeleton';
@@ -38,7 +44,7 @@ export default function NowScreen() {
     status,
     areaName,
     usingDemoLocation,
-    source,
+    isLiveData,
     warning,
     loading,
     refreshing,
@@ -65,10 +71,13 @@ export default function NowScreen() {
 
   const masthead = (
     <View style={styles.masthead}>
-      <Txt variant="label" tone="faint" uppercase numberOfLines={1}>
-        {WEEKDAYS[now.getDay()]} · {formatClock(now)}
-        {areaName ? ` · ${areaName}` : ''}
-      </Txt>
+      <View style={styles.mastheadTop}>
+        <Txt variant="label" tone="faint" uppercase numberOfLines={1} style={{ flexShrink: 1 }}>
+          {WEEKDAYS[now.getDay()]} · {formatClock(now)}
+          {areaName ? ` · ${areaName}` : ''}
+        </Txt>
+        {status === 'ready' && !isLiveData ? <SampleDataBadge compact /> : null}
+      </View>
       <Txt variant="hero" style={{ marginTop: space.md }}>
         {firstName ? `${moment.greeting}, ${firstName}.` : `${moment.greeting}.`}
       </Txt>
@@ -180,13 +189,21 @@ export default function NowScreen() {
               </View>
             ) : null}
 
-            {source === 'sample' ? (
+            {!isLiveData ? (
               <View style={{ marginTop: space['2xl'] }}>
                 <Notice
+                  tone="caution"
                   text={
                     warning ??
-                    'Showing a sample neighbourhood laid out around you. Add a Google Places key in app.json to switch to live listings.'
+                    'These are made-up restaurants, laid out around your real position so the app is explorable. Add a Google Places key in You → Listings for real places near you.'
                   }
+                />
+                <Button
+                  label="Use real Google listings"
+                  variant="secondary"
+                  iconName="key-outline"
+                  onPress={() => router.push('/profile')}
+                  style={{ marginTop: space.md }}
                 />
               </View>
             ) : null}
@@ -289,6 +306,12 @@ const styles = StyleSheet.create({
   },
   scroll: { paddingHorizontal: SCREEN_PADDING },
   masthead: { paddingTop: space.lg, paddingBottom: space['2xl'] },
+  mastheadTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.md,
+  },
   actions: { flexDirection: 'row', marginTop: space.lg },
   reasons: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.lg },
   gate: {

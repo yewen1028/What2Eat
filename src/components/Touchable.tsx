@@ -47,9 +47,12 @@ export function Touchable({
   const pressed = useSharedValue(0);
   const reduceMotion = useReducedMotion();
 
+  // The disabled dimming lives inside the animated style: Reanimated writes
+  // opacity inline, which would otherwise win over any static style set after
+  // it and leave disabled controls looking fully enabled.
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: 1 - pressed.value * (1 - (reduceMotion ? 1 : scaleTo)) }],
-    opacity: 1 - pressed.value * 0.14,
+    opacity: (disabled ? 0.4 : 1) - pressed.value * 0.14,
   }));
 
   const handlePress = useCallback(() => {
@@ -67,7 +70,7 @@ export function Touchable({
       onPress={handlePress}
       onPressIn={() => (pressed.value = withTiming(1, { duration: 90 }))}
       onPressOut={() => (pressed.value = withTiming(0, { duration: motion.fast }))}
-      style={[style, animatedStyle, disabled && { opacity: 0.45 }]}
+      style={[style, animatedStyle]}
       {...a11y}
     >
       {children}

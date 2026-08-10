@@ -13,7 +13,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Chip, OpenBadge, PriceLevel, Rating } from '../../src/components/Badges';
 import { Button } from '../../src/components/Button';
-import { EmptyState, SCREEN_PADDING, SectionHeader } from '../../src/components/Layout';
+import {
+  EmptyState,
+  SampleDataBadge,
+  SCREEN_PADDING,
+  SectionHeader,
+} from '../../src/components/Layout';
 import { PlaceImage } from '../../src/components/PlaceImage';
 import { SaveButton } from '../../src/components/SaveButton';
 import { Touchable } from '../../src/components/Touchable';
@@ -33,7 +38,7 @@ export default function PlaceScreen() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { now } = useNearby();
+  const { now, isLiveData } = useNearby();
   const suggestion = usePlace(id);
 
   const scrollY = useSharedValue(0);
@@ -104,9 +109,12 @@ export default function PlaceScreen() {
         <View style={[styles.sheet, { backgroundColor: c.bg }]}>
           <View style={[styles.grabber, { backgroundColor: c.borderStrong }]} />
 
-          <Txt variant="label" tone="faint" uppercase>
-            {place.cuisine}
-          </Txt>
+          <View style={styles.eyebrow}>
+            <Txt variant="label" tone="faint" uppercase style={{ flexShrink: 1 }}>
+              {place.cuisine}
+            </Txt>
+            {!isLiveData ? <SampleDataBadge compact /> : null}
+          </View>
           <Txt variant="title" style={{ marginTop: space.xs }} accessibilityRole="header">
             {place.name}
           </Txt>
@@ -294,6 +302,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     marginBottom: space.xl,
   },
+  eyebrow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: space.md },
   sep: { marginHorizontal: space.sm },
   section: { marginTop: space['2xl'] },

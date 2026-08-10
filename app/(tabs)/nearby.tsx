@@ -6,7 +6,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '../../src/components/Button';
 import { FilterChip } from '../../src/components/FilterChip';
-import { EmptyState, Notice, SCREEN_PADDING } from '../../src/components/Layout';
+import {
+  EmptyState,
+  Notice,
+  SampleDataBadge,
+  SCREEN_PADDING,
+} from '../../src/components/Layout';
 import { PlaceRow } from '../../src/components/PlaceRow';
 import { RowSkeleton } from '../../src/components/Skeleton';
 import { Touchable } from '../../src/components/Touchable';
@@ -41,7 +46,7 @@ export default function NearbyScreen() {
     filters,
     setFilters,
     resetFilters,
-    source,
+    isLiveData,
     warning,
   } = useNearby();
 
@@ -68,11 +73,14 @@ export default function NearbyScreen() {
             <Txt variant="title" accessibilityRole="header">
               Nearby
             </Txt>
-            <Txt variant="small" tone="muted" style={{ marginTop: 2 }}>
-              {loading
-                ? 'Ranking places around you…'
-                : `${sorted.length} of ${places.length} places match`}
-            </Txt>
+            <View style={styles.subtitleRow}>
+              <Txt variant="small" tone="muted" style={{ flexShrink: 1 }}>
+                {loading
+                  ? 'Ranking places around you…'
+                  : `${sorted.length} of ${places.length} places match`}
+              </Txt>
+              {!loading && !isLiveData ? <SampleDataBadge compact /> : null}
+            </View>
           </View>
 
           <Touchable
@@ -159,7 +167,7 @@ export default function NearbyScreen() {
             />
           )}
           ListHeaderComponent={
-            source === 'sample' && warning ? (
+            !isLiveData && warning ? (
               <View style={{ paddingTop: space.lg }}>
                 <Notice text={warning} tone="caution" />
               </View>
@@ -201,6 +209,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: 4 },
   iconButton: {
     width: MIN_TAP,
     height: MIN_TAP,

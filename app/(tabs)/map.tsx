@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OpenBadge, PriceLevel, Rating } from '../../src/components/Badges';
 import { Button } from '../../src/components/Button';
-import { EmptyState, SCREEN_PADDING } from '../../src/components/Layout';
+import { EmptyState, SampleDataBadge, SCREEN_PADDING } from '../../src/components/Layout';
+import { schematicReason, usesSchematicMap } from '../../src/components/map/capability';
 import { MapSurface } from '../../src/components/map/MapSurface';
 import { MapMarker } from '../../src/components/map/types';
 import { PlaceImage } from '../../src/components/PlaceImage';
@@ -27,7 +28,7 @@ export default function MapScreen() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { status, origin, areaName, suggestions, loading } = useNearby();
+  const { status, origin, areaName, suggestions, loading, isLiveData } = useNearby();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [recenterKey, setRecenterKey] = useState(0);
@@ -79,7 +80,7 @@ export default function MapScreen() {
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]} pointerEvents="box-none">
         <View style={[styles.headerPill, { backgroundColor: c.bg, borderColor: c.border }]}>
           <Ionicons name="location" size={icon.sm} color={c.accent} />
-          <View style={{ marginLeft: space.sm }}>
+          <View style={{ marginLeft: space.sm, flexShrink: 1 }}>
             <Txt variant="smallStrong" numberOfLines={1}>
               {areaName ?? 'Around you'}
             </Txt>
@@ -87,6 +88,11 @@ export default function MapScreen() {
               {loading ? 'Loading…' : `${markers.length} places match`}
             </Txt>
           </View>
+          {!loading && !isLiveData ? (
+            <View style={{ marginLeft: space.sm }}>
+              <SampleDataBadge compact />
+            </View>
+          ) : null}
         </View>
 
         <Touchable
@@ -103,11 +109,11 @@ export default function MapScreen() {
 
       {/* Sits under the header, where nothing else competes for the space —
           the selection card makes any bottom-anchored position unreliable. */}
-      {Platform.OS === 'web' ? (
+      {usesSchematicMap ? (
         <View style={[styles.webNote, { top: insets.top + space.sm + 58 }]} pointerEvents="none">
           <View style={[styles.notePill, { backgroundColor: c.bg, borderColor: c.border }]}>
-            <Txt variant="label" tone="faint">
-              Schematic view · true bearings and distances
+            <Txt variant="label" tone="faint" numberOfLines={2}>
+              {schematicReason()}
             </Txt>
           </View>
         </View>
@@ -203,7 +209,7 @@ const styles = StyleSheet.create({
   headerPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    maxWidth: '74%',
+    maxWidth: '78%',
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     borderRadius: radius.pill,
