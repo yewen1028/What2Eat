@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "What2Eat",
+    "slug": "what2eat",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "what2eat",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#FBF7F1",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.what2eat.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "What2Eat uses your location to find highly-rated places to eat right around you."
+      }
+    },
+    "android": {
+      "package": "com.what2eat.app",
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "What2Eat uses your location to find highly-rated places to eat right around you."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "googlePlacesApiKey": ""
+    }
+  }
+}
