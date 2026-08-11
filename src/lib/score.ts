@@ -1,6 +1,7 @@
-import { distanceMetres, walkMinutes } from './geo';
+import { distanceMetres, formatDistance, walkMinutes } from './geo';
 import { formatDuration, mealPeriodFor, openStateFor } from './time';
 import { Coords, Filters, MealPeriod, Place, Suggestion } from './types';
+
 
 /**
  * Ranking is the whole product: the user should not have to open ten places to
@@ -54,10 +55,28 @@ function clamp01(n: number) {
   return Math.min(1, Math.max(0, n));
 }
 
-export function buildSuggestion(place: Place, origin: Coords, at: Date): Suggestion {
+/**
+ * @param period Which meal to rank for. Defaults to whatever the clock says;
+ *   pass it explicitly when the user is browsing a different sitting (e.g.
+ *   checking supper spots in the afternoon). Open/closed state always reflects
+ *   real time regardless.
+ */
+export function buildSuggestion(
+  place: Place,
+  origin: Coords,
+  at: Date,
+  period: MealPeriod = mealPeriodFor(at),
+  /**
+   * Whether right-now opening state should count towards the score. False when
+   * the user is browsing a sitting other than the current one: a kopitiam that
+   * shuts at 15:00 is the *right* answer for breakfast, and scoring it zero at
+   * 18:00 would bury it under whatever happens to be open. Its weight moves to
+   * meal fit instead, and the pins still show real open/closed state.
+   */
+  scoreTiming = true,
+): Suggestion {
   const distance = distanceMetres(origin, place.coords);
   const walk = walkMinutes(distance);
-  const period = mealPeriodFor(at);
   const open = openStateFor(place.hours, at);
 
   const quality = qualityScore(place);
@@ -71,11 +90,14 @@ export function buildSuggestion(place: Place, origin: Coords, at: Date): Suggest
     timing = runway >= walk + 60 ? 1 : clamp01((runway - walk) / 60);
   }
 
+  const fitWeight = scoreTiming ? WEIGHTS.fit : WEIGHTS.fit + WEIGHTS.timing;
   const score =
     WEIGHTS.quality * quality +
     WEIGHTS.proximity * proximity +
-    WEIGHTS.fit * fit +
-    WEIGHTS.timing * timing;
+    fitWeight * fit +
+    (scoreTiming ? WEIGHTS.timing * timing : 0);
+
+  const adjusted = bayesianRating(place.rating, place.reviewCount);
 
   return {
     place,
@@ -85,9 +107,50 @@ export function buildSuggestion(place: Place, origin: Coords, at: Date): Suggest
     closingInMinutes: open.closingInMinutes,
     opensInMinutes: open.opensInMinutes,
     score,
+    breakdown: {
+      quality: {
+        value: quality,
+        weighted: WEIGHTS.quality * quality,
+        detail:
+          place.reviewCount > 0
+            ? `${place.rating.toFixed(1)} from ${formatCount(place.reviewCount)} reviews, weighted to ${adjusted.toFixed(2)}`
+            : 'No ratings yet',
+      },
+      proximity: {
+        value: proximity,
+        weighted: WEIGHTS.proximity * proximity,
+        detail: `${formatDistance(distance)} from you · about ${walk} min on foot`,
+      },
+      fit: {
+        value: fit,
+        weighted: fitWeight * fit,
+        detail:
+          fit === 1
+            ? `Serves ${period} — what you are looking for now`
+            : fit > 0
+              ? `Not primarily a ${period} spot, but close enough`
+              : `Does not usually serve ${period}`,
+      },
+      timing: {
+        value: scoreTiming ? timing : 0,
+        weighted: scoreTiming ? WEIGHTS.timing * timing : 0,
+        detail: !scoreTiming
+          ? `Not scored — you are looking at ${period} rather than now`
+          : open.isOpen
+          ? open.closingInMinutes !== null && open.closingInMinutes < walk + 60
+            ? `Open, but closing in ${formatDuration(open.closingInMinutes)}`
+            : 'Open with time to spare'
+          : open.opensInMinutes !== null
+            ? `Closed — opens in ${formatDuration(open.opensInMinutes)}`
+            : 'Closed',
+      },
+    },
     reasons: buildReasons(place, { walk, quality, proximity, fit, open: open.isOpen }),
   };
 }
+
+/** Weight labels for the ranking breakdown UI. */
+export const SCORE_WEIGHTS = WEIGHTS;
 
 function buildReasons(
   place: Place,
@@ -124,9 +187,16 @@ export function passesFilters(s: Suggestion, f: Filters): boolean {
   return true;
 }
 
-export function rank(places: Place[], origin: Coords, at: Date, filters: Filters): Suggestion[] {
+export function rank(
+  places: Place[],
+  origin: Coords,
+  at: Date,
+  filters: Filters,
+  period?: MealPeriod,
+  scoreTiming = true,
+): Suggestion[] {
   return places
-    .map((p) => buildSuggestion(p, origin, at))
+    .map((p) => buildSuggestion(p, origin, at, period, scoreTiming))
     .filter((s) => passesFilters(s, filters))
     .sort((a, b) => b.score - a.score);
 }

@@ -14,7 +14,7 @@ const MOMENTS: Record<MealPeriod, Omit<MealMoment, 'period'>> = {
   breakfast: {
     label: 'breakfast',
     greeting: 'Good morning',
-    blurb: 'Early kitchens and coffee that opens before you do.',
+    blurb: 'Kopitiams and early kitchens, before the day starts properly.',
   },
   brunch: {
     label: 'brunch',
@@ -27,9 +27,9 @@ const MOMENTS: Record<MealPeriod, Omit<MealMoment, 'period'>> = {
     blurb: 'Fast enough to get back, good enough to look forward to.',
   },
   coffee: {
-    label: 'an afternoon break',
+    label: 'tea time',
     greeting: 'Afternoon',
-    blurb: 'Something small before the evening rush starts.',
+    blurb: 'Kuih, kopi and something small before the evening rush.',
   },
   dinner: {
     label: 'dinner',
@@ -37,10 +37,40 @@ const MOMENTS: Record<MealPeriod, Omit<MealMoment, 'period'>> = {
     blurb: 'Kitchens are on and the good tables are still open.',
   },
   late: {
-    label: 'a late bite',
+    label: 'supper',
     greeting: 'Still up',
-    blurb: 'The short list of places that are genuinely still serving.',
+    blurb: 'Mamak and the late kitchens that are genuinely still serving.',
   },
+};
+
+/** Chip order, earliest to latest. */
+export const MEAL_PERIODS: MealPeriod[] = [
+  'breakfast',
+  'brunch',
+  'lunch',
+  'coffee',
+  'dinner',
+  'late',
+];
+
+/** Title-case names for pickers. "Supper" and "Tea time" are the local terms. */
+export const MEAL_PERIOD_LABELS: Record<MealPeriod, string> = {
+  breakfast: 'Breakfast',
+  brunch: 'Brunch',
+  lunch: 'Lunch',
+  coffee: 'Tea time',
+  dinner: 'Dinner',
+  late: 'Supper',
+};
+
+/** The clock window each period covers, matching `mealPeriodFor`. */
+export const MEAL_PERIOD_WINDOWS: Record<MealPeriod, string> = {
+  breakfast: '5:00–10:30',
+  brunch: '10:30–12:00',
+  lunch: '12:00–15:00',
+  coffee: '15:00–17:00',
+  dinner: '17:00–21:30',
+  late: '21:30–5:00',
 };
 
 /** Minutes since local midnight. */

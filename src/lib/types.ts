@@ -26,6 +26,8 @@ export interface Place {
   reviewCount: number;
   /** 1–4, mirroring the familiar $–$$$$ convention. */
   priceLevel: 1 | 2 | 3 | 4;
+  /** Real per-person range in local currency when the provider publishes one. */
+  priceText?: string;
   coords: Coords;
   address: string;
   photo?: string;
@@ -50,8 +52,30 @@ export interface Suggestion {
   /** Minutes until it opens, when currently closed. */
   opensInMinutes: number | null;
   score: number;
+  /** The weighted parts behind `score`, so the ranking can be shown, not just asserted. */
+  breakdown: ScoreBreakdown;
   /** Short phrases explaining the ranking, most important first. */
   reasons: string[];
+}
+
+export interface ScoreComponent {
+  /** 0–1 before weighting. */
+  value: number;
+  /** How much this component contributed to the final score. */
+  weighted: number;
+  /** Plain-language statement of the input, e.g. "480 m away". */
+  detail: string;
+}
+
+export interface ScoreBreakdown {
+  /** Rating, weighted by how many people actually rated it. */
+  quality: ScoreComponent;
+  /** How far the user would walk from their current position. */
+  proximity: ScoreComponent;
+  /** Whether the kitchen suits the current hour. */
+  fit: ScoreComponent;
+  /** Open, and open long enough to be worth the walk. */
+  timing: ScoreComponent;
 }
 
 export interface Filters {

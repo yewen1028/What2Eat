@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { Easing, FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OpenBadge, PriceLevel, Rating } from '../../src/components/Badges';
 import { Button } from '../../src/components/Button';
+import { FilterChip } from '../../src/components/FilterChip';
 import { EmptyState, SampleDataBadge, SCREEN_PADDING } from '../../src/components/Layout';
 import { schematicReason, usesSchematicMap } from '../../src/components/map/capability';
 import { MapSurface } from '../../src/components/map/MapSurface';
@@ -17,6 +18,13 @@ import { Touchable } from '../../src/components/Touchable';
 import { Txt } from '../../src/components/Txt';
 import { formatDistance } from '../../src/lib/geo';
 import { openDirections } from '../../src/lib/maps';
+import { rank } from '../../src/lib/score';
+import {
+  MEAL_PERIOD_LABELS,
+  MEAL_PERIOD_WINDOWS,
+  MEAL_PERIODS,
+} from '../../src/lib/time';
+import { MealPeriod } from '../../src/lib/types';
 import { useNearby } from '../../src/state/nearby';
 import { useTheme } from '../../src/theme/theme';
 import { icon, motion, MIN_TAP, radius, space } from '../../src/theme/tokens';
@@ -28,10 +36,27 @@ export default function MapScreen() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { status, origin, areaName, suggestions, loading, isLiveData } = useNearby();
+  const { status, origin, areaName, places, filters, now, moment, loading, isLiveData } =
+    useNearby();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [recenterKey, setRecenterKey] = useState(0);
+  /** null = follow the clock. Set once the user picks a sitting by hand. */
+  const [pickedPeriod, setPickedPeriod] = useState<MealPeriod | null>(null);
+  /** Measured, so the recenter button clears the card without magic numbers. */
+  const [cardHeight, setCardHeight] = useState(0);
+
+  const period = pickedPeriod ?? moment.period;
+  const isNow = period === moment.period;
+
+  const suggestions = useMemo(() => {
+    if (!origin) return [];
+    // Browsing another sitting means most of it is legitimately shut right now;
+    // keeping "open only" on would just empty the map, so it is relaxed and the
+    // pins carry their own open/closed state instead.
+    const effective = isNow ? filters : { ...filters, openOnly: false };
+    return rank(places, origin, now, effective, period, isNow);
+  }, [places, origin, now, filters, period, isNow]);
 
   const markers = useMemo<MapMarker[]>(
     () =>
@@ -82,18 +107,25 @@ export default function MapScreen() {
           <Ionicons name="location" size={icon.sm} color={c.accent} />
           <View style={{ marginLeft: space.sm, flexShrink: 1 }}>
             <Txt variant="smallStrong" numberOfLines={1}>
-              {areaName ?? 'Around you'}
+              {MEAL_PERIOD_LABELS[period]}
             </Txt>
             <Txt variant="label" tone="faint" numberOfLines={1}>
-              {loading ? 'Loading…' : `${markers.length} places match`}
+              {loading
+                ? 'Loading…'
+                : isNow
+                  ? `${markers.length} places · right now`
+                  : `${markers.length} places · ${MEAL_PERIOD_WINDOWS[period]}`}
             </Txt>
           </View>
-          {!loading && !isLiveData ? (
-            <View style={{ marginLeft: space.sm }}>
-              <SampleDataBadge compact />
-            </View>
-          ) : null}
         </View>
+
+        {!loading && !isLiveData ? (
+          <View style={{ marginLeft: space.sm }}>
+            <SampleDataBadge compact />
+          </View>
+        ) : null}
+
+        <View style={{ flex: 1 }} />
 
         <Touchable
           accessibilityRole="button"
@@ -107,10 +139,37 @@ export default function MapScreen() {
         </Touchable>
       </View>
 
+      {/* Which sitting to show. Defaults to the clock; tapping the current one
+          again hands control back to it. */}
+      <View style={[styles.meals, { top: insets.top + space.sm + 62 }]} pointerEvents="box-none">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.mealRow}
+        >
+          {MEAL_PERIODS.map((p) => (
+            <FilterChip
+              key={p}
+              label={p === moment.period ? `${MEAL_PERIOD_LABELS[p]} · now` : MEAL_PERIOD_LABELS[p]}
+              selected={p === period}
+              accessibilityLabel={
+                p === moment.period
+                  ? `${MEAL_PERIOD_LABELS[p]}, the current sitting`
+                  : `${MEAL_PERIOD_LABELS[p]}, ${MEAL_PERIOD_WINDOWS[p]}`
+              }
+              onPress={() => {
+                setSelectedId(null);
+                setPickedPeriod(p === moment.period ? null : p);
+              }}
+            />
+          ))}
+        </ScrollView>
+      </View>
+
       {/* Sits under the header, where nothing else competes for the space —
           the selection card makes any bottom-anchored position unreliable. */}
       {usesSchematicMap ? (
-        <View style={[styles.webNote, { top: insets.top + space.sm + 58 }]} pointerEvents="none">
+        <View style={[styles.webNote, { top: insets.top + space.sm + 114 }]} pointerEvents="none">
           <View style={[styles.notePill, { backgroundColor: c.bg, borderColor: c.border }]}>
             <Txt variant="label" tone="faint" numberOfLines={2}>
               {schematicReason()}
@@ -119,10 +178,13 @@ export default function MapScreen() {
         </View>
       ) : null}
 
-      {/* Stacked under the filter button rather than bottom-right, where the
-          selection card and the platform note both want to live. */}
+      {/* Bottom-right, lifted clear of the selection card by its measured
+          height — the top-right is now the meal picker's. */}
       <View
-        style={[styles.recenter, { top: insets.top + space.sm + MIN_TAP + space.xs }]}
+        style={[
+          styles.recenter,
+          { bottom: (selected ? cardHeight : 0) + space.lg },
+        ]}
         pointerEvents="box-none"
       >
         <Touchable
@@ -144,6 +206,7 @@ export default function MapScreen() {
         <Animated.View
           entering={FadeInDown.duration(motion.base).easing(Easing.bezier(...motion.ease).factory())}
           exiting={FadeOutDown.duration(motion.fast)}
+          onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)}
           style={[
             styles.card,
             {
@@ -172,7 +235,7 @@ export default function MapScreen() {
               <View style={styles.metaRow}>
                 <Rating rating={selected.place.rating} reviewCount={selected.place.reviewCount} compact />
                 <View style={{ width: space.md }} />
-                <PriceLevel level={selected.place.priceLevel} />
+                <PriceLevel level={selected.place.priceLevel} priceText={selected.place.priceText} />
               </View>
               <View style={{ marginTop: 6 }}>
                 <OpenBadge suggestion={selected} />
@@ -209,7 +272,7 @@ const styles = StyleSheet.create({
   headerPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    maxWidth: '78%',
+    flexShrink: 1,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     borderRadius: radius.pill,
@@ -224,6 +287,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  meals: { position: 'absolute', left: 0, right: 0 },
+  mealRow: { gap: space.sm, paddingHorizontal: SCREEN_PADDING },
   recenter: { position: 'absolute', right: SCREEN_PADDING - space.xs },
   card: {
     position: 'absolute',

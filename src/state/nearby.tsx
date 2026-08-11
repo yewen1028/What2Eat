@@ -18,7 +18,8 @@ import { filtersFromProfile, useProfile } from './profile';
 export type LocationStatus = 'idle' | 'asking' | 'ready' | 'denied' | 'error';
 
 /** Used when the user declines location but still wants to look around. */
-const DEMO_ORIGIN: Coords = { lat: 51.5142, lng: -0.1265 };
+const DEMO_ORIGIN: Coords = { lat: 3.1466, lng: 101.7114 };
+const DEMO_AREA_NAME = 'Bukit Bintang, KL';
 
 interface NearbyValue {
   status: LocationStatus;
@@ -182,7 +183,7 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
   const useDemoLocation = useCallback(() => {
     setOrigin(DEMO_ORIGIN);
     setUsingDemoLocation(true);
-    setAreaName('Fitzrovia');
+    setAreaName(DEMO_AREA_NAME);
     setStatus('ready');
     void fetchPlaces(DEMO_ORIGIN);
   }, [fetchPlaces]);

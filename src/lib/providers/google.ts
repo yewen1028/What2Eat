@@ -20,17 +20,27 @@ const FIELD_MASK = [
   'places.rating',
   'places.userRatingCount',
   'places.priceLevel',
+  // Actual money, in local currency — far more useful in Malaysia than a row
+  // of dollar signs.
+  'places.priceRange',
   'places.primaryTypeDisplayName',
   'places.types',
   'places.regularOpeningHours',
+  'places.utcOffsetMinutes',
   'places.photos',
   'places.servesVegetarianFood',
+  'places.businessStatus',
 ].join(',');
 
 interface GooglePoint {
   day: number;
   hour: number;
   minute: number;
+}
+
+interface GoogleMoney {
+  currencyCode?: string;
+  units?: string;
 }
 
 interface GooglePlace {
@@ -42,11 +52,14 @@ interface GooglePlace {
   rating?: number;
   userRatingCount?: number;
   priceLevel?: string;
+  priceRange?: { startPrice?: GoogleMoney; endPrice?: GoogleMoney };
   primaryTypeDisplayName?: { text?: string };
   types?: string[];
   regularOpeningHours?: { periods?: { open?: GooglePoint; close?: GooglePoint }[] };
+  utcOffsetMinutes?: number;
   photos?: { name: string }[];
   servesVegetarianFood?: boolean;
+  businessStatus?: string;
 }
 
 const PRICE_MAP: Record<string, 1 | 2 | 3 | 4> = {
@@ -66,8 +79,21 @@ const PERIOD_TYPES: Record<string, Place['mealPeriods'][number]> = {
   coffee_shop: 'coffee',
   bakery: 'coffee',
   dessert_shop: 'coffee',
+  tea_house: 'coffee',
+  juice_shop: 'coffee',
   fine_dining_restaurant: 'dinner',
   bar_and_grill: 'dinner',
+  // Malaysian staples: mamak and kopitiam land under these Google types, and
+  // both serve well outside the usual lunch/dinner windows.
+  indian_restaurant: 'late',
+  asian_restaurant: 'lunch',
+  chinese_restaurant: 'lunch',
+  malaysian_restaurant: 'lunch',
+  indonesian_restaurant: 'lunch',
+  thai_restaurant: 'lunch',
+  seafood_restaurant: 'dinner',
+  vegetarian_restaurant: 'lunch',
+  food_court: 'lunch',
 };
 
 function toWeeklyHours(place: GooglePlace): WeeklyHours {
@@ -111,19 +137,35 @@ function humanTag(type: string): string {
     .join(' ');
 }
 
+/** "RM 20 – 40" when Google publishes a real range for the place. */
+function toPriceText(range?: GooglePlace['priceRange']): string | undefined {
+  const start = range?.startPrice?.units;
+  const end = range?.endPrice?.units;
+  const code = range?.startPrice?.currencyCode ?? range?.endPrice?.currencyCode;
+  if (!code || (!start && !end)) return undefined;
+
+  const symbol = code === 'MYR' ? 'RM' : code;
+  if (start && end) return `${symbol} ${start}–${end}`;
+  return `${symbol} ${start ?? end}+`;
+}
+
 function toPlace(g: GooglePlace, apiKey: string): Place | null {
   if (!g.location || !g.displayName?.text) return null;
+  // Permanently closed places must never be suggested.
+  if (g.businessStatus && g.businessStatus !== 'OPERATIONAL') return null;
 
   const photoName = g.photos?.[0]?.name;
 
   return {
     id: g.id,
+    // Straight from Google — the app never rewrites a real business name.
     name: g.displayName.text,
     cuisine: g.primaryTypeDisplayName?.text ?? 'Restaurant',
     tags: (g.types ?? []).filter((t) => t !== 'restaurant' && t !== 'food').slice(0, 3).map(humanTag),
     rating: g.rating ?? 0,
     reviewCount: g.userRatingCount ?? 0,
     priceLevel: (g.priceLevel && PRICE_MAP[g.priceLevel]) || 2,
+    priceText: toPriceText(g.priceRange),
     coords: { lat: g.location.latitude, lng: g.location.longitude },
     address: g.shortFormattedAddress ?? g.formattedAddress ?? '',
     photo: photoName
@@ -150,9 +192,19 @@ export async function fetchGooglePlaces(
       'X-Goog-FieldMask': FIELD_MASK,
     },
     body: JSON.stringify({
-      includedTypes: ['restaurant', 'cafe', 'bakery', 'bar'],
+      includedTypes: [
+        'restaurant',
+        'cafe',
+        'bakery',
+        'food_court',
+        'meal_takeaway',
+      ],
       maxResultCount: 20,
       rankPreference: 'POPULARITY',
+      // Biases results and formatting to Malaysia: local address formats and
+      // the names Malaysian users would actually recognise.
+      regionCode: 'MY',
+      languageCode: 'en',
       locationRestriction: {
         circle: {
           center: { latitude: origin.lat, longitude: origin.lng },

@@ -56,7 +56,7 @@ export function PlaceRow({ suggestion, rank, showDivider = true }: Props) {
         <View style={styles.metaRow}>
           <Rating rating={place.rating} reviewCount={place.reviewCount} compact />
           <View style={{ width: space.md }} />
-          <PriceLevel level={place.priceLevel} />
+          <PriceLevel level={place.priceLevel} priceText={place.priceText} />
         </View>
 
         <View style={[styles.metaRow, { marginTop: 6 }]}>

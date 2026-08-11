@@ -21,6 +21,7 @@ import {
 } from '../../src/components/Layout';
 import { PlaceImage } from '../../src/components/PlaceImage';
 import { SaveButton } from '../../src/components/SaveButton';
+import { ScoreBreakdown } from '../../src/components/ScoreBreakdown';
 import { Touchable } from '../../src/components/Touchable';
 import { Txt } from '../../src/components/Txt';
 import { formatDistance } from '../../src/lib/geo';
@@ -149,13 +150,13 @@ export default function PlaceScreen() {
                   <Chip key={reason} label={reason} tone={i === 0 ? 'accent' : 'neutral'} />
                 ))}
               </View>
-              <Txt variant="small" tone="muted" style={{ marginTop: space.md }}>
-                Ranked on rating weighted by {formatCount(place.reviewCount)} reviews (
-                {adjusted.toFixed(2)} adjusted), how far you would walk, whether the kitchen suits
-                this hour, and how long it stays open.
-              </Txt>
             </View>
           ) : null}
+
+          <View style={styles.section}>
+            <SectionHeader title="How this ranked" />
+            <ScoreBreakdown suggestion={suggestion} />
+          </View>
 
           {place.tags.length > 0 ? (
             <View style={styles.section}>

@@ -108,7 +108,7 @@ export function HeroPick({ suggestion, scrollY, generation }: Props) {
               {suggestion.walkMinutes} min walk
             </Txt>
             <Dot />
-            <PriceLevel level={place.priceLevel} onPhoto />
+            <PriceLevel level={place.priceLevel} priceText={place.priceText} onPhoto />
           </View>
 
           <View style={styles.footerRow}>

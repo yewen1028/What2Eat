@@ -44,10 +44,28 @@ export function Rating({ rating, reviewCount, onPhoto, compact }: RatingProps) {
   );
 }
 
-export function PriceLevel({ level, onPhoto }: { level: number; onPhoto?: boolean }) {
+export function PriceLevel({
+  level,
+  priceText,
+  onPhoto,
+}: {
+  level: number;
+  /** Real range from the provider, e.g. "RM 15–30". Preferred when present. */
+  priceText?: string;
+  onPhoto?: boolean;
+}) {
   const { c } = useTheme();
   const active = onPhoto ? '#FFFFFF' : c.text;
   const inactive = onPhoto ? 'rgba(255,255,255,0.4)' : c.textFaint;
+
+  // An actual price beats an abstraction of one.
+  if (priceText) {
+    return (
+      <Txt variant="smallStrong" color={active} accessibilityLabel={`Typical spend ${priceText}`}>
+        {priceText}
+      </Txt>
+    );
+  }
 
   return (
     <View style={styles.row} accessibilityLabel={`Price level ${level} of 4`}>
@@ -60,11 +78,17 @@ export function PriceLevel({ level, onPhoto }: { level: number; onPhoto?: boolea
   );
 }
 
+/** Only the opening state — callers should not need a full ranked Suggestion. */
+export type OpenBadgeState = Pick<
+  Suggestion,
+  'isOpen' | 'closingInMinutes' | 'opensInMinutes'
+>;
+
 /**
  * Open state uses shape *and* wording, never colour alone: the dot is filled
  * when open and hollow when closed, and the label always spells it out.
  */
-export function OpenBadge({ suggestion, onPhoto }: { suggestion: Suggestion; onPhoto?: boolean }) {
+export function OpenBadge({ suggestion, onPhoto }: { suggestion: OpenBadgeState; onPhoto?: boolean }) {
   const { c } = useTheme();
   const { isOpen, closingInMinutes, opensInMinutes } = suggestion;
 
@@ -121,7 +145,7 @@ export function Chip({ label, iconName, tone = 'neutral', style }: ChipProps) {
   );
 }
 
-export function ClosingTimeNote({ suggestion }: { suggestion: Suggestion }) {
+export function ClosingTimeNote({ suggestion }: { suggestion: OpenBadgeState }) {
   const { isOpen, closingInMinutes } = suggestion;
   if (!isOpen || closingInMinutes === null) return null;
   const closesAt = new Date();

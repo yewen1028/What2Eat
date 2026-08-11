@@ -30,17 +30,31 @@ what it shows you.
 ## Real restaurants vs. sample data
 
 **Without a Places key the restaurants are fictional.** The built-in dataset is
-hand-written — invented names, invented ratings, invented hours — laid out
-around your real position so that distance, opening-hours and ranking logic all
-exercise real code paths. It is never presented as real: a **SAMPLE** badge sits
-on the Now masthead, the Nearby header, the map header and every detail page for
-as long as that data is in use.
+a hand-written Malaysian neighbourhood — invented names, invented ratings,
+invented hours — laid out around your real position so that distance,
+opening-hours and ranking logic all exercise real code paths. It is never
+presented as real: a **SAMPLE** badge sits on the Now masthead, the Nearby
+header, the map header and every detail page for as long as that data is in use.
+
+The names are deliberately made up. Attaching invented ratings, prices and
+opening hours to real Malaysian restaurants would be worse than obviously fake
+data — it would misinform about businesses that actually exist, and the numbers
+would be wrong from the first day. What *is* modelled accurately is the shape of
+the data: mamak and nasi kandar running past midnight, kopitiams shutting
+mid-afternoon, prawn mee that sells out by 13:00, and RM price bands.
 
 Real names, ratings and hours come from Google. Two ways to switch over:
 
 **In the app** — *You → Listings → Google Places API key*. Paste a key with
 *Places API (New)* enabled and the listings swap immediately, no rebuild. The
 key is stored on the device and only ever sent to Google.
+
+The request is tuned for Malaysia: `regionCode: 'MY'` for local address
+formatting and result bias, Malaysian restaurant types mapped to meal periods
+(mamak → late night, kopitiam → breakfast), `food_court` and `meal_takeaway`
+included alongside restaurants and cafés, permanently-closed places dropped, and
+`priceRange` read so listings show real money — **RM 12–25** — instead of a row
+of dollar signs.
 
 **At build time** — set the environment variable before starting:
 
@@ -136,6 +150,13 @@ Everything persists to `AsyncStorage` and stays on the device.
 
 Filters (`open now`, walk time, minimum rating, price, vegetarian) are a hard
 gate applied before the sort, not another weight.
+
+Every listing's detail page shows **How this ranked**: the match score out of
+100 plus each component's 0–100 value, its weight, and the input behind it
+("260 m from you · about 3 min on foot", "4.6 from 940 reviews, weighted to
+4.55"). These are the same numbers the sort used — nothing is recomputed for
+display — so the ranking is inspectable rather than asserted, and it re-derives
+against wherever you currently are.
 
 Opening hours handle intervals that run past midnight, so a place closing at
 02:00 still reads as open when you check at 00:30, and the hours table labels it

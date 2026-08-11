@@ -117,21 +117,10 @@ function SavedRowWithoutLocation({
         <View style={styles.metaRow}>
           <Rating rating={place.rating} reviewCount={place.reviewCount} compact />
           <View style={{ width: space.md }} />
-          <PriceLevel level={place.priceLevel} />
+          <PriceLevel level={place.priceLevel} priceText={place.priceText} />
         </View>
         <View style={{ marginTop: 6 }}>
-          <OpenBadge
-            suggestion={{
-              place,
-              distance: 0,
-              walkMinutes: 0,
-              isOpen: open.isOpen,
-              closingInMinutes: open.closingInMinutes,
-              opensInMinutes: open.opensInMinutes,
-              score: 0,
-              reasons: [],
-            }}
-          />
+          <OpenBadge suggestion={open} />
         </View>
       </View>
       <SaveButton place={place} />
