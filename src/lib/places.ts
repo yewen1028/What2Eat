@@ -52,7 +52,7 @@ export async function loadPlaces(
       return {
         places: samplePlaces(origin),
         source: 'sample',
-        warning: 'Google returned no places within range — showing sample data instead.',
+        warning: 'Google returned no places within range. Showing sample data instead.',
       };
     }
     return { places, source: 'google' };

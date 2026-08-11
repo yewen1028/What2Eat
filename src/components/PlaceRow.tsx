@@ -45,7 +45,9 @@ export function PlaceRow({ suggestion, rank, showDivider = true }: Props) {
       </View>
 
       <View style={styles.body}>
-        <Txt variant="heading" numberOfLines={1}>
+        {/* Two lines: Malaysian names run long and the name is the one thing
+            the user is actually scanning for. */}
+        <Txt variant="heading" numberOfLines={2}>
           {place.name}
         </Txt>
 
@@ -78,7 +80,9 @@ export function PlaceRow({ suggestion, rank, showDivider = true }: Props) {
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    // Top-aligned: with two-line names the row is tall enough that a centred
+    // thumbnail floats away from the name it belongs to.
+    alignItems: 'flex-start',
     paddingVertical: space.lg,
   },
   thumb: { width: 84, height: 84, borderRadius: radius.md },

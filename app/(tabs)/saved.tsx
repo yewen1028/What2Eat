@@ -108,7 +108,7 @@ function SavedRowWithoutLocation({
     >
       <PlaceImage uri={place.photo} seed={place.name} style={styles.thumb} />
       <View style={styles.plainBody}>
-        <Txt variant="heading" numberOfLines={1}>
+        <Txt variant="heading" numberOfLines={2}>
           {place.name}
         </Txt>
         <Txt variant="small" tone="muted" numberOfLines={1} style={{ marginTop: 2 }}>

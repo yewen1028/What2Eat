@@ -166,10 +166,16 @@ Opening hours handle intervals that run past midnight, so a place closing at
 
 ## Design
 
-Warm editorial: paper-coloured surfaces, an ember accent, **Fraunces** for the
-voice and **Karla** for everything functional. Colour is carried by semantic
-tokens in `src/theme/tokens.ts` and resolved per scheme — both light and dark
-are designed, not inferred from each other.
+Slate and terracotta: cool bone surfaces, true-ink text, one warm accent.
+**Bricolage Grotesque** for the voice and **Karla** for everything functional.
+Colour is carried by semantic tokens in `src/theme/tokens.ts` and resolved per
+scheme — both light and dark are designed, not inferred from each other.
+
+The palette is a deliberate step away from the warm-cream-plus-brass-plus-
+espresso combination that generated "premium food" interfaces almost always
+land on. Beyond avoiding the cliché it does real work: a cool ground makes
+warm food photography read hotter, which is the entire job of the chrome in an
+app whose content is pictures of food.
 
 Specific commitments:
 

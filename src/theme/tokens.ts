@@ -48,48 +48,58 @@ export interface Palette {
   overlay: string;
 }
 
+/**
+ * Palette: slate + terracotta.
+ *
+ * Deliberately NOT the warm-cream + brass + espresso family that every
+ * AI-generated "premium food" interface reaches for. Surfaces are a cool
+ * neutral bone, text is a true ink rather than warm espresso, and the single
+ * accent is a terracotta that stays appetising without pairing into that
+ * template. The cool ground also makes the food photography read hotter, which
+ * is the whole job of the chrome in this app.
+ */
 const light: Palette = {
-  bg: '#FBF7F1',
+  bg: '#EDEEEC',
   surface: '#FFFFFF',
-  surfaceAlt: '#F2EAE0',
-  text: '#1B1512',
-  textMuted: '#655A52',
-  textFaint: '#8B7E74',
-  border: '#E8DDD0',
-  borderStrong: '#D3C3B0',
-  accent: '#BE3A11',
+  surfaceAlt: '#E1E3E0',
+  text: '#15181A',
+  textMuted: '#545A5D',
+  textFaint: '#7C8285',
+  border: '#D6D9D5',
+  borderStrong: '#B8BCB8',
+  accent: '#C0472A',
   onAccent: '#FFFFFF',
-  accentSoft: '#FBE7DC',
-  onAccentSoft: '#8E2A0B',
-  gold: '#9A6B08',
-  positive: '#2F6B45',
-  positiveSoft: '#E1EFE5',
+  accentSoft: '#F7E4DE',
+  onAccentSoft: '#8C2F17',
+  gold: '#8A6A0B',
+  positive: '#1F6B4A',
+  positiveSoft: '#DFEDE6',
   caution: '#8A5A0B',
-  cautionSoft: '#F8ECD6',
-  scrim: 'rgba(27, 21, 18, 0.5)',
-  overlay: 'rgba(15, 11, 9, 0.55)',
+  cautionSoft: '#F5EAD6',
+  scrim: 'rgba(21, 24, 26, 0.5)',
+  overlay: 'rgba(12, 14, 15, 0.55)',
 };
 
 const dark: Palette = {
-  bg: '#12100E',
-  surface: '#1C1917',
-  surfaceAlt: '#282320',
-  text: '#F6F1EA',
-  textMuted: '#B4A79C',
-  textFaint: '#8E827A',
-  border: '#332C28',
-  borderStrong: '#4A403A',
-  accent: '#FF8556',
-  onAccent: '#2A0F04',
-  accentSoft: '#3A2119',
-  onAccentSoft: '#FFB694',
-  gold: '#E0AC4B',
-  positive: '#68C08C',
-  positiveSoft: '#1D2E24',
-  caution: '#E0B45F',
-  cautionSoft: '#2F2618',
+  bg: '#101214',
+  surface: '#1A1D1F',
+  surfaceAlt: '#24282A',
+  text: '#ECEEED',
+  textMuted: '#A3A9AC',
+  textFaint: '#7A8184',
+  border: '#2C3033',
+  borderStrong: '#444A4D',
+  accent: '#FF7A52',
+  onAccent: '#2A0C02',
+  accentSoft: '#3A1F18',
+  onAccentSoft: '#FFB197',
+  gold: '#DDB25E',
+  positive: '#5CC08B',
+  positiveSoft: '#182C23',
+  caution: '#DDB05E',
+  cautionSoft: '#2C2517',
   scrim: 'rgba(0, 0, 0, 0.62)',
-  overlay: 'rgba(10, 7, 6, 0.6)',
+  overlay: 'rgba(6, 8, 9, 0.6)',
 };
 
 export const palettes: Record<ColorScheme, Palette> = { light, dark };
@@ -121,9 +131,17 @@ export const icon = {
   lg: 24,
 } as const;
 
+/**
+ * Bricolage Grotesque for display, Karla for everything functional.
+ *
+ * The display face is a sans with real character (odd, slightly condensed
+ * proportions) rather than the editorial serif that food apps default to.
+ * Malaysian street food is not a French bistro, and a serif was borrowing the
+ * wrong reference.
+ */
 export const fonts = {
-  display: 'Fraunces_700Bold',
-  displayMedium: 'Fraunces_600SemiBold',
+  display: 'BricolageGrotesque_700Bold',
+  displayMedium: 'BricolageGrotesque_600SemiBold',
   body: 'Karla_400Regular',
   bodyMedium: 'Karla_500Medium',
   bodyBold: 'Karla_700Bold',
@@ -134,9 +152,11 @@ export const fonts = {
  * loose at large optical sizes; `label` sizes carry positive tracking.
  */
 export const type = {
-  hero: { fontFamily: fonts.display, fontSize: 40, lineHeight: 44, letterSpacing: -1 },
-  title: { fontFamily: fonts.display, fontSize: 28, lineHeight: 32, letterSpacing: -0.6 },
-  heading: { fontFamily: fonts.displayMedium, fontSize: 21, lineHeight: 26, letterSpacing: -0.3 },
+  // Bricolage sets wider than a serif at display sizes, so tracking pulls in
+  // harder than the previous scale did.
+  hero: { fontFamily: fonts.display, fontSize: 40, lineHeight: 44, letterSpacing: -1.6 },
+  title: { fontFamily: fonts.display, fontSize: 28, lineHeight: 32, letterSpacing: -1 },
+  heading: { fontFamily: fonts.displayMedium, fontSize: 21, lineHeight: 26, letterSpacing: -0.6 },
   body: { fontFamily: fonts.body, fontSize: 16, lineHeight: 24, letterSpacing: 0 },
   bodyStrong: { fontFamily: fonts.bodyMedium, fontSize: 16, lineHeight: 24, letterSpacing: 0 },
   small: { fontFamily: fonts.body, fontSize: 14, lineHeight: 20, letterSpacing: 0 },

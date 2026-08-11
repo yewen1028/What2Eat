@@ -145,7 +145,7 @@ function toPriceText(range?: GooglePlace['priceRange']): string | undefined {
   if (!code || (!start && !end)) return undefined;
 
   const symbol = code === 'MYR' ? 'RM' : code;
-  if (start && end) return `${symbol} ${start}–${end}`;
+  if (start && end) return `${symbol} ${start}-${end}`;
   return `${symbol} ${start ?? end}+`;
 }
 

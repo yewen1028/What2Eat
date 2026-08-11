@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { SCORE_WEIGHTS } from '../lib/score';
 import { ScoreComponent, Suggestion } from '../lib/types';
 import { useTheme } from '../theme/theme';
-import { fonts, radius, space } from '../theme/tokens';
+import { fonts, space } from '../theme/tokens';
 import { Txt } from './Txt';
 
 const ROWS: { key: keyof Suggestion['breakdown']; label: string; weight: number }[] = [
@@ -15,35 +15,48 @@ const ROWS: { key: keyof Suggestion['breakdown']; label: string; weight: number 
 ];
 
 /**
- * Shows exactly why a place ranked where it did, against the user's current
- * position and the current time. Every number here is the same one the sort
- * used — nothing is recomputed for display.
+ * Why a place ranked where it did, against the user's current position and the
+ * current time. Every number is the one the sort used; nothing is recomputed.
+ *
+ * Presented as a ledger rather than progress bars. Filled meter tracks are
+ * dashboard furniture: they take a lot of ink to say what a two-digit number
+ * says exactly, and four of them stacked reads as a settings screen. The score
+ * carries the weight typographically instead.
  */
 export function ScoreBreakdown({ suggestion }: { suggestion: Suggestion }) {
   const { c } = useTheme();
 
   return (
     <View>
-      <View style={[styles.total, { backgroundColor: c.surfaceAlt }]}>
-        <View style={{ flex: 1 }}>
-          <Txt variant="label" tone="faint" uppercase>
-            Match score
-          </Txt>
+      <View style={styles.total}>
+        <Txt
+          style={{
+            fontFamily: fonts.display,
+            fontSize: 64,
+            lineHeight: 62,
+            letterSpacing: -3,
+            color: c.accent,
+          }}
+        >
+          {Math.round(suggestion.score * 100)}
+        </Txt>
+        <View style={styles.totalMeta}>
+          <Txt variant="bodyStrong">Match score</Txt>
           <Txt variant="small" tone="muted" style={{ marginTop: 2 }}>
             Out of 100, for where you are standing right now
           </Txt>
         </View>
-        <Txt style={{ fontFamily: fonts.display, fontSize: 34, color: c.text, letterSpacing: -1 }}>
-          {Math.round(suggestion.score * 100)}
-        </Txt>
       </View>
 
-      {ROWS.map(({ key, label, weight }) => (
+      <View style={[styles.rule, { backgroundColor: c.text }]} />
+
+      {ROWS.map(({ key, label, weight }, i) => (
         <Row
           key={key}
           label={label}
           weight={weight}
           component={suggestion.breakdown[key]}
+          last={i === ROWS.length - 1}
         />
       ))}
     </View>
@@ -54,62 +67,56 @@ function Row({
   label,
   weight,
   component,
+  last,
 }: {
   label: string;
   weight: number;
   component: ScoreComponent;
+  last: boolean;
 }) {
   const { c } = useTheme();
   const pct = Math.round(component.value * 100);
 
   return (
     <View
-      style={styles.row}
+      style={[styles.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: c.border }]}
       accessibilityLabel={`${label}: ${pct} out of 100, worth ${Math.round(weight * 100)} percent of the score. ${component.detail}`}
     >
       <View style={styles.rowHead}>
-        <Txt variant="smallStrong" style={{ flex: 1 }}>
+        <Txt variant="bodyStrong" style={{ flex: 1 }}>
           {label}
         </Txt>
-        <Txt variant="label" tone="faint">
-          {Math.round(weight * 100)}% weight
-        </Txt>
-      </View>
-
-      {/* The bar is paired with the number so meaning never rests on width alone. */}
-      <View style={styles.barRow}>
-        <View style={[styles.track, { backgroundColor: c.surfaceAlt }]}>
-          <View
-            style={[
-              styles.fill,
-              { width: `${Math.max(2, pct)}%`, backgroundColor: pct >= 50 ? c.accent : c.borderStrong },
-            ]}
-          />
-        </View>
-        <Txt variant="smallStrong" tone="muted" style={styles.pct}>
+        {/* Tabular figures keep the column edge straight down the list. */}
+        <Txt
+          style={{
+            fontFamily: fonts.display,
+            fontSize: 22,
+            letterSpacing: -0.6,
+            color: pct >= 50 ? c.text : c.textFaint,
+            fontVariant: ['tabular-nums'],
+          }}
+        >
           {pct}
         </Txt>
       </View>
 
-      <Txt variant="small" tone="muted">
-        {component.detail}
-      </Txt>
+      <View style={styles.rowFoot}>
+        <Txt variant="small" tone="muted" style={{ flex: 1 }}>
+          {component.detail}
+        </Txt>
+        <Txt variant="label" tone="faint" style={{ marginLeft: space.md }}>
+          {Math.round(weight * 100)}%
+        </Txt>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  total: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: space.lg,
-    borderRadius: radius.md,
-    marginBottom: space.xl,
-  },
-  row: { marginBottom: space.lg },
-  rowHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  barRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  track: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
-  fill: { height: 6, borderRadius: 3 },
-  pct: { width: 34, textAlign: 'right' },
+  total: { flexDirection: 'row', alignItems: 'center', marginBottom: space.lg },
+  totalMeta: { flex: 1, marginLeft: space.lg },
+  rule: { height: 1.5, marginBottom: space.xs },
+  row: { paddingVertical: space.md },
+  rowHead: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 2 },
+  rowFoot: { flexDirection: 'row', alignItems: 'flex-end' },
 });

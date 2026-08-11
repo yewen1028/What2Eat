@@ -226,7 +226,7 @@ export default function MapScreen() {
           >
             <PlaceImage uri={selected.place.photo} seed={selected.place.name} style={styles.thumb} />
             <View style={styles.cardBody}>
-              <Txt variant="heading" numberOfLines={1}>
+              <Txt variant="heading" numberOfLines={2}>
                 {selected.place.name}
               </Txt>
               <Txt variant="small" tone="muted" numberOfLines={1} style={{ marginTop: 2 }}>

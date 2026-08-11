@@ -83,9 +83,20 @@ Places key = runtime, overridable in-app (You → Listings), stored per-device.
 
 ## Design system
 
-Warm editorial. **Fraunces** display / **Karla** UI, paper background, single
-ember accent. Everything comes from `src/theme/tokens.ts` — no raw hex, no raw
-spacing numbers in components.
+Slate + terracotta. **Bricolage Grotesque** display / **Karla** UI, cool bone
+surfaces, true-ink text, one terracotta accent. Everything comes from
+`src/theme/tokens.ts` — no raw hex, no raw spacing numbers in components.
+
+Two deliberate anti-defaults, do not revert them casually:
+- **Not Fraunces, not warm cream + brass + espresso.** That palette and that
+  serif are the LLM house style for "premium food"; the cool ground also makes
+  the food photography read hotter, which is the chrome's whole job.
+- **No filled-track progress bars.** `ScoreBreakdown` is a typographic ledger.
+  Meter tracks are dashboard furniture and read as a settings screen.
+
+Copy rules: no em-dashes or en-dashes in user-facing strings (ranges use a
+hyphen: `RM 8-18`, `12:00 - 15:00`). Never leak internal period keys into copy
+— `late` renders as "supper" via `MEAL_PERIOD_LABELS`.
 
 - All tappables go through `<Touchable>` (press scale + opacity + haptics).
   Disabled dimming lives **inside** `useAnimatedStyle` — Reanimated writes

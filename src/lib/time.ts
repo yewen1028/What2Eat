@@ -65,12 +65,12 @@ export const MEAL_PERIOD_LABELS: Record<MealPeriod, string> = {
 
 /** The clock window each period covers, matching `mealPeriodFor`. */
 export const MEAL_PERIOD_WINDOWS: Record<MealPeriod, string> = {
-  breakfast: '5:00–10:30',
-  brunch: '10:30–12:00',
-  lunch: '12:00–15:00',
-  coffee: '15:00–17:00',
-  dinner: '17:00–21:30',
-  late: '21:30–5:00',
+  breakfast: '5:00-10:30',
+  brunch: '10:30-12:00',
+  lunch: '12:00-15:00',
+  coffee: '15:00-17:00',
+  dinner: '17:00-21:30',
+  late: '21:30-5:00',
 };
 
 /** Minutes since local midnight. */
@@ -180,7 +180,7 @@ export function formatIntervals(intervals: OpenInterval[]): string {
   }
   return intervals
     .map((i) => {
-      const range = `${formatMinutesOfDay(i.open)} – ${formatMinutesOfDay(i.close)}`;
+      const range = `${formatMinutesOfDay(i.open)} - ${formatMinutesOfDay(i.close)}`;
       // A close time past midnight is otherwise indistinguishable from an
       // early-morning one: "12:00 – 2:00" reads as a two-hour lunch service.
       return i.close >= 1440 ? `${range} next day` : range;

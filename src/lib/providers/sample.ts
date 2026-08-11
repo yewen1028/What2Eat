@@ -1,7 +1,7 @@
-import { offsetCoords } from '../geo';
+﻿import { offsetCoords } from '../geo';
 import { Coords, MealPeriod, OpenInterval, Place, WeeklyHours } from '../types';
 
-/** `h(9, 30)` → minutes since midnight. Values past 24 mean "after midnight". */
+/** `h(9, 30)` -> minutes since midnight. Values past 24 mean "after midnight". */
 const h = (hour: number, minute = 0) => hour * 60 + minute;
 
 const every = (...slots: OpenInterval[]): WeeklyHours => Array.from({ length: 7 }, () => slots);
@@ -28,15 +28,15 @@ const IMG = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=c
  * A fictional Malaysian neighbourhood.
  *
  * IMPORTANT: none of these are real businesses. The names are invented on
- * purpose — attaching made-up ratings, prices and opening hours to real
+ * purpose  -  attaching made-up ratings, prices and opening hours to real
  * restaurants would be worse than obviously fake data, because it would
  * misinform about places that actually exist. Real listings come from Google
- * Places once a key is set (You → Listings); until then every screen showing
+ * Places once a key is set (You -> Listings); until then every screen showing
  * these carries a SAMPLE badge.
  *
  * What *is* real here is the shape of the data: Malaysian meal patterns, mamak
  * hours that run past midnight, kopitiams that shut mid-afternoon, and RM price
- * bands — so the ranking, opening-hours and distance logic get a realistic
+ * bands  -  so the ranking, opening-hours and distance logic get a realistic
  * workout wherever the user actually is.
  */
 const SEEDS: Seed[] = [
@@ -47,7 +47,7 @@ const SEEDS: Seed[] = [
     rating: 4.7,
     reviewCount: 2140,
     priceLevel: 1,
-    priceText: 'RM 6–14',
+    priceText: 'RM 6-14',
     photo: IMG('photo-1596797038530-2c107229654b'),
     hours: every({ open: h(7), close: h(14, 30) }),
     mealPeriods: ['breakfast', 'brunch', 'lunch'],
@@ -63,7 +63,7 @@ const SEEDS: Seed[] = [
     rating: 4.5,
     reviewCount: 1380,
     priceLevel: 1,
-    priceText: 'RM 5–12',
+    priceText: 'RM 5-12',
     photo: IMG('photo-1533089860892-a7c6f0a88666'),
     hours: every({ open: h(6, 30), close: h(15) }),
     mealPeriods: ['breakfast', 'brunch', 'coffee'],
@@ -80,7 +80,7 @@ const SEEDS: Seed[] = [
     rating: 4.6,
     reviewCount: 3260,
     priceLevel: 1,
-    priceText: 'RM 7–15',
+    priceText: 'RM 7-15',
     photo: IMG('photo-1585032226651-759b368d7246'),
     hours: every({ open: h(11), close: h(26) }),
     mealPeriods: ['lunch', 'dinner', 'late'],
@@ -97,7 +97,7 @@ const SEEDS: Seed[] = [
     rating: 4.8,
     reviewCount: 1720,
     priceLevel: 1,
-    priceText: 'RM 9–16',
+    priceText: 'RM 9-16',
     photo: IMG('photo-1455619452474-d2be8b1e70cd'),
     hours: exceptOn([1], { open: h(10), close: h(20) }),
     mealPeriods: ['brunch', 'lunch', 'dinner'],
@@ -113,7 +113,7 @@ const SEEDS: Seed[] = [
     rating: 4.5,
     reviewCount: 4310,
     priceLevel: 1,
-    priceText: 'RM 8–18',
+    priceText: 'RM 8-18',
     photo: IMG('photo-1626777552726-4a6b54c97e46'),
     hours: every({ open: h(0), close: h(24) }),
     mealPeriods: ['breakfast', 'lunch', 'dinner', 'late'],
@@ -129,7 +129,7 @@ const SEEDS: Seed[] = [
     rating: 4.7,
     reviewCount: 2680,
     priceLevel: 2,
-    priceText: 'RM 12–25',
+    priceText: 'RM 12-25',
     photo: IMG('photo-1567337710282-00832b415979'),
     hours: every({ open: h(11), close: h(22) }),
     mealPeriods: ['lunch', 'dinner'],
@@ -146,7 +146,7 @@ const SEEDS: Seed[] = [
     rating: 4.6,
     reviewCount: 1490,
     priceLevel: 2,
-    priceText: 'RM 15–30',
+    priceText: 'RM 15-30',
     photo: IMG('photo-1631515243349-e0cb75fb8d3a'),
     hours: exceptOn([2], { open: h(11, 30), close: h(22) }),
     mealPeriods: ['lunch', 'dinner'],
@@ -162,7 +162,7 @@ const SEEDS: Seed[] = [
     rating: 4.4,
     reviewCount: 2010,
     priceLevel: 2,
-    priceText: 'RM 15–35',
+    priceText: 'RM 15-35',
     photo: IMG('photo-1606491956689-2ea866880c84'),
     hours: every({ open: h(7), close: h(14) }),
     mealPeriods: ['breakfast', 'brunch'],
@@ -178,7 +178,7 @@ const SEEDS: Seed[] = [
     rating: 4.4,
     reviewCount: 1860,
     priceLevel: 1,
-    priceText: 'RM 8–16',
+    priceText: 'RM 8-16',
     photo: IMG('photo-1603133872878-684f208fb84b'),
     hours: every({ open: h(17), close: h(27) }),
     mealPeriods: ['dinner', 'late'],
@@ -194,7 +194,7 @@ const SEEDS: Seed[] = [
     rating: 4.6,
     reviewCount: 940,
     priceLevel: 1,
-    priceText: 'RM 10–18',
+    priceText: 'RM 10-18',
     photo: IMG('photo-1582878826629-29b7ad1cdc43'),
     hours: every({ open: h(10), close: h(21) }),
     mealPeriods: ['lunch', 'dinner'],
@@ -210,7 +210,7 @@ const SEEDS: Seed[] = [
     rating: 4.3,
     reviewCount: 2750,
     priceLevel: 1,
-    priceText: 'RM 7–14',
+    priceText: 'RM 7-14',
     photo: IMG('photo-1626082927389-6cd097cdc6ec'),
     hours: every({ open: h(11), close: h(23) }),
     mealPeriods: ['lunch', 'dinner', 'late'],
@@ -226,7 +226,7 @@ const SEEDS: Seed[] = [
     rating: 4.7,
     reviewCount: 620,
     priceLevel: 2,
-    priceText: 'RM 12–24',
+    priceText: 'RM 12-24',
     photo: IMG('photo-1554118811-1e0d58224f24'),
     hours: every({ open: h(8), close: h(18) }),
     mealPeriods: ['breakfast', 'brunch', 'coffee'],
@@ -243,7 +243,7 @@ const SEEDS: Seed[] = [
     rating: 4.5,
     reviewCount: 830,
     priceLevel: 1,
-    priceText: 'RM 4–12',
+    priceText: 'RM 4-12',
     photo: IMG('photo-1547592180-85f173990554'),
     hours: every({ open: h(8), close: h(20) }),
     mealPeriods: ['breakfast', 'coffee'],
@@ -260,7 +260,7 @@ const SEEDS: Seed[] = [
     rating: 4.5,
     reviewCount: 510,
     priceLevel: 2,
-    priceText: 'RM 14–28',
+    priceText: 'RM 14-28',
     photo: IMG('photo-1546069901-ba9599a7e63c'),
     hours: split([{ open: h(11), close: h(20) }], [{ open: h(11), close: h(17) }]),
     mealPeriods: ['lunch', 'dinner'],
@@ -277,7 +277,7 @@ const SEEDS: Seed[] = [
     rating: 4.6,
     reviewCount: 1930,
     priceLevel: 2,
-    priceText: 'RM 25–55',
+    priceText: 'RM 25-55',
     photo: IMG('photo-1559339352-11d035aa65de'),
     hours: every({ open: h(17), close: h(23, 30) }),
     mealPeriods: ['dinner', 'late'],
@@ -293,7 +293,7 @@ const SEEDS: Seed[] = [
     rating: 4.2,
     reviewCount: 5120,
     priceLevel: 1,
-    priceText: 'RM 5–13',
+    priceText: 'RM 5-13',
     photo: IMG('photo-1585937421612-70a008356fbe'),
     hours: every({ open: h(0), close: h(24) }),
     mealPeriods: ['breakfast', 'lunch', 'dinner', 'late'],
@@ -310,7 +310,7 @@ const SEEDS: Seed[] = [
     rating: 4.8,
     reviewCount: 460,
     priceLevel: 1,
-    priceText: 'RM 2–8',
+    priceText: 'RM 2-8',
     photo: IMG('photo-1601050690597-df0568f70950'),
     hours: every({ open: h(14), close: h(19) }),
     mealPeriods: ['coffee'],
@@ -327,7 +327,7 @@ const SEEDS: Seed[] = [
     rating: 4.7,
     reviewCount: 1240,
     priceLevel: 1,
-    priceText: 'RM 9–17',
+    priceText: 'RM 9-17',
     photo: IMG('photo-1569718212165-3a8278d5f624'),
     hours: exceptOn([3], { open: h(7), close: h(13) }),
     mealPeriods: ['breakfast', 'brunch'],
@@ -343,7 +343,7 @@ const SEEDS: Seed[] = [
     rating: 4.9,
     reviewCount: 380,
     priceLevel: 4,
-    priceText: 'RM 180–260',
+    priceText: 'RM 180-260',
     photo: IMG('photo-1517248135467-4c7edcad34c4'),
     hours: exceptOn([0, 1], { open: h(18, 30), close: h(22, 30) }),
     mealPeriods: ['dinner'],
@@ -375,3 +375,4 @@ export const SAMPLE_MEAL_PERIODS: MealPeriod[] = [
   'dinner',
   'late',
 ];
+

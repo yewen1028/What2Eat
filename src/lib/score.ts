@@ -1,5 +1,5 @@
 import { distanceMetres, formatDistance, walkMinutes } from './geo';
-import { formatDuration, mealPeriodFor, openStateFor } from './time';
+import { formatDuration, MEAL_PERIOD_LABELS, mealPeriodFor, openStateFor } from './time';
 import { Coords, Filters, MealPeriod, Place, Suggestion } from './types';
 
 
@@ -98,6 +98,8 @@ export function buildSuggestion(
     (scoreTiming ? WEIGHTS.timing * timing : 0);
 
   const adjusted = bayesianRating(place.rating, place.reviewCount);
+  // "supper", not the internal key "late".
+  const periodLabel = MEAL_PERIOD_LABELS[period].toLowerCase();
 
   return {
     place,
@@ -126,22 +128,22 @@ export function buildSuggestion(
         weighted: fitWeight * fit,
         detail:
           fit === 1
-            ? `Serves ${period} — what you are looking for now`
+            ? `Serves ${periodLabel}, which is what you want now`
             : fit > 0
-              ? `Not primarily a ${period} spot, but close enough`
-              : `Does not usually serve ${period}`,
+              ? `Not primarily a ${periodLabel} spot, but close enough`
+              : `Does not usually serve ${periodLabel}`,
       },
       timing: {
         value: scoreTiming ? timing : 0,
         weighted: scoreTiming ? WEIGHTS.timing * timing : 0,
         detail: !scoreTiming
-          ? `Not scored — you are looking at ${period} rather than now`
+          ? `Not scored, because you are browsing ${periodLabel} rather than now`
           : open.isOpen
           ? open.closingInMinutes !== null && open.closingInMinutes < walk + 60
             ? `Open, but closing in ${formatDuration(open.closingInMinutes)}`
             : 'Open with time to spare'
           : open.opensInMinutes !== null
-            ? `Closed — opens in ${formatDuration(open.opensInMinutes)}`
+            ? `Closed. Opens in ${formatDuration(open.opensInMinutes)}`
             : 'Closed',
       },
     },
@@ -204,7 +206,7 @@ export function rank(
 /** Human summary of why the top pick won, for the hero card. */
 export function headlineReason(s: Suggestion): string {
   if (s.closingInMinutes !== null && s.closingInMinutes <= 45) {
-    return `Closing in ${formatDuration(s.closingInMinutes)} — go now`;
+    return `Closing in ${formatDuration(s.closingInMinutes)}, go now`;
   }
   return s.reasons[0] ?? 'A solid call right now';
 }

@@ -1,8 +1,8 @@
 import {
-  Fraunces_600SemiBold,
-  Fraunces_700Bold,
+  BricolageGrotesque_600SemiBold,
+  BricolageGrotesque_700Bold,
   useFonts,
-} from '@expo-google-fonts/fraunces';
+} from '@expo-google-fonts/bricolage-grotesque';
 import { Karla_400Regular, Karla_500Medium, Karla_700Bold } from '@expo-google-fonts/karla';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -21,8 +21,8 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Fraunces_600SemiBold,
-    Fraunces_700Bold,
+    BricolageGrotesque_600SemiBold,
+    BricolageGrotesque_700Bold,
     Karla_400Regular,
     Karla_500Medium,
     Karla_700Bold,
