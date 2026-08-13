@@ -11,7 +11,8 @@ import { Notice, SCREEN_PADDING, SectionHeader } from '../../src/components/Layo
 import { Toggle } from '../../src/components/Toggle';
 import { Touchable } from '../../src/components/Touchable';
 import { Txt } from '../../src/components/Txt';
-import { useNearby } from '../../src/state/nearby';
+import { formatFixAge } from '../../src/lib/time';
+import { DEMO_AREA_NAME, useNearby } from '../../src/state/nearby';
 import { initialsFor, useProfile } from '../../src/state/profile';
 import { useSaved } from '../../src/state/saved';
 import { useTheme } from '../../src/theme/theme';
@@ -36,6 +37,8 @@ export default function ProfileScreen() {
   const {
     status,
     areaName,
+    fixedAt,
+    now,
     usingDemoLocation,
     isLiveData,
     places,
@@ -180,8 +183,21 @@ export default function ProfileScreen() {
             status !== 'ready'
               ? 'Not set'
               : usingDemoLocation
-                ? `Demo · ${areaName ?? 'Fitzrovia'}`
+                ? `Demo · ${areaName ?? DEMO_AREA_NAME}`
                 : (areaName ?? 'Located')
+          }
+        />
+        <InfoRow
+          iconName="time-outline"
+          label="Last fix"
+          value={
+            status !== 'ready'
+              ? 'Never'
+              : usingDemoLocation
+                ? 'Fixed demo point'
+                : fixedAt
+                  ? formatFixAge(fixedAt, now)
+                  : 'Unknown'
           }
         />
         <InfoRow
@@ -202,7 +218,8 @@ export default function ProfileScreen() {
           ) : null}
         </View>
         <Txt variant="small" tone="muted" style={{ marginTop: space.md }}>
-          Your position is read on demand and used only to rank what is around you. Nothing is
+          Your position is read on demand — when you open the app, pull to refresh, and again the
+          moment you ask for directions — and is used only to rank what is around you. Nothing is
           uploaded, and nothing about you is stored beyond this device.
         </Txt>
       </View>

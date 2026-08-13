@@ -5,12 +5,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OpenBadge, PriceLevel, Rating } from '../../src/components/Badges';
 import { Button } from '../../src/components/Button';
-import { EmptyState, SCREEN_PADDING } from '../../src/components/Layout';
+import { EmptyState, SampleDataBadge, SCREEN_PADDING } from '../../src/components/Layout';
 import { PlaceImage } from '../../src/components/PlaceImage';
 import { PlaceRow } from '../../src/components/PlaceRow';
 import { SaveButton } from '../../src/components/SaveButton';
+import { RowSkeleton } from '../../src/components/Skeleton';
 import { Touchable } from '../../src/components/Touchable';
 import { Txt } from '../../src/components/Txt';
+import { isSamplePlace } from '../../src/lib/providers/sample';
 import { buildSuggestion } from '../../src/lib/score';
 import { openStateFor } from '../../src/lib/time';
 import { Place } from '../../src/lib/types';
@@ -33,7 +35,24 @@ export default function SavedScreen() {
     [items, origin, now],
   );
 
-  if (hydrated && items.length === 0) {
+  const sampleCount = useMemo(() => items.filter(isSamplePlace).length, [items]);
+
+  // Bookmarks come off disk a tick after mount. Showing the "nothing saved"
+  // empty state in that gap tells returning users their list is gone.
+  if (!hydrated) {
+    return (
+      <View style={[styles.screen, { backgroundColor: c.bg, paddingTop: insets.top + space.xl }]}>
+        <Header />
+        <View style={styles.list}>
+          <RowSkeleton />
+          <RowSkeleton />
+          <RowSkeleton />
+        </View>
+      </View>
+    );
+  }
+
+  if (items.length === 0) {
     return (
       <View style={[styles.screen, { backgroundColor: c.bg, paddingTop: insets.top + space.xl }]}>
         <Header />
@@ -49,7 +68,7 @@ export default function SavedScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: c.bg, paddingTop: insets.top + space.xl }]}>
-      <Header count={items.length} />
+      <Header count={items.length} sampleCount={sampleCount} />
       <FlatList
         data={items}
         keyExtractor={(p) => p.id}
@@ -67,16 +86,22 @@ export default function SavedScreen() {
   );
 }
 
-function Header({ count }: { count?: number }) {
+function Header({ count, sampleCount = 0 }: { count?: number; sampleCount?: number }) {
   return (
     <View style={styles.header}>
       <Txt variant="title" accessibilityRole="header">
         Saved
       </Txt>
       {count !== undefined ? (
-        <Txt variant="small" tone="muted" style={{ marginTop: 2 }}>
-          {count} {count === 1 ? 'place' : 'places'}
-        </Txt>
+        <View style={styles.headerMeta}>
+          <Txt variant="small" tone="muted">
+            {count} {count === 1 ? 'place' : 'places'}
+          </Txt>
+          {/* Bookmarks outlive the session that made them, so a list can hold
+              fictional listings long after a Places key went in. The badge has
+              to follow the saved item, not the current data source. */}
+          {sampleCount > 0 ? <SampleDataBadge compact /> : null}
+        </View>
       ) : null}
     </View>
   );
@@ -93,7 +118,7 @@ function SavedRowWithoutLocation({
 }) {
   const { c } = useTheme();
   const router = useRouter();
-  const open = openStateFor(place.hours, now);
+  const open = openStateFor(place.hours, now, place.utcOffsetMinutes);
 
   return (
     <Touchable
@@ -131,6 +156,7 @@ function SavedRowWithoutLocation({
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   header: { paddingHorizontal: SCREEN_PADDING, paddingBottom: space.sm },
+  headerMeta: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: space.xs },
   list: { paddingHorizontal: SCREEN_PADDING },
   plainRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: space.lg },
   thumb: { width: 84, height: 84, borderRadius: radius.md },

@@ -32,6 +32,12 @@ export interface Place {
   address: string;
   photo?: string;
   hours: WeeklyHours;
+  /**
+   * The place's offset from UTC, in minutes. `hours` are in the *place's* local
+   * time, which is not the device's when the phone is roaming or a simulator is
+   * set to another region. Undefined means "assume the device clock".
+   */
+  utcOffsetMinutes?: number;
   /** Meal periods this place actually suits. */
   mealPeriods: MealPeriod[];
   /** Typical wait in minutes at peak. Used to break ties. */

@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { Easing, FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OpenBadge, PriceLevel, Rating } from '../../src/components/Badges';
 import { Button } from '../../src/components/Button';
 import { FilterChip } from '../../src/components/FilterChip';
-import { EmptyState, SampleDataBadge, SCREEN_PADDING } from '../../src/components/Layout';
+import { EmptyState, Notice, SampleDataBadge, SCREEN_PADDING } from '../../src/components/Layout';
 import { schematicReason, usesSchematicMap } from '../../src/components/map/capability';
 import { MapSurface } from '../../src/components/map/MapSurface';
 import { MapMarker } from '../../src/components/map/types';
@@ -17,7 +17,6 @@ import { SaveButton } from '../../src/components/SaveButton';
 import { Touchable } from '../../src/components/Touchable';
 import { Txt } from '../../src/components/Txt';
 import { formatDistance } from '../../src/lib/geo';
-import { openDirections } from '../../src/lib/maps';
 import { rank } from '../../src/lib/score';
 import {
   MEAL_PERIOD_LABELS,
@@ -25,7 +24,7 @@ import {
   MEAL_PERIODS,
 } from '../../src/lib/time';
 import { MealPeriod } from '../../src/lib/types';
-import { useNearby } from '../../src/state/nearby';
+import { useDirections, useNearby } from '../../src/state/nearby';
 import { useTheme } from '../../src/theme/theme';
 import { icon, motion, MIN_TAP, radius, space } from '../../src/theme/tokens';
 
@@ -36,9 +35,12 @@ export default function MapScreen() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { status, origin, areaName, places, filters, now, moment, loading, isLiveData } =
+  const { status, origin, places, filters, now, moment, loading, isLiveData, currentPosition } =
     useNearby();
 
+  const directions = useDirections();
+
+  const [locating, setLocating] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [recenterKey, setRecenterKey] = useState(0);
   /** null = follow the clock. Set once the user picks a sitting by hand. */
@@ -190,14 +192,27 @@ export default function MapScreen() {
         <Touchable
           accessibilityRole="button"
           accessibilityLabel="Centre the map on me"
+          accessibilityHint="Re-reads your location and recentres"
+          accessibilityState={{ busy: locating }}
           onPress={() => {
             setSelectedId(null);
-            setRecenterKey((k) => k + 1);
+            // Re-read first, otherwise this recentres on the fix taken when
+            // permission was granted — the blue dot slides back to where the
+            // user was standing ten minutes ago and calls it "me".
+            setLocating(true);
+            void currentPosition().finally(() => {
+              setLocating(false);
+              setRecenterKey((k) => k + 1);
+            });
           }}
           style={styles.iconTap}
         >
           <View style={[styles.disc, { backgroundColor: c.bg, borderColor: c.border }]}>
-            <Ionicons name="locate" size={icon.md} color={c.text} />
+            {locating ? (
+              <ActivityIndicator size="small" color={c.text} />
+            ) : (
+              <Ionicons name="locate" size={icon.md} color={c.text} />
+            )}
           </View>
         </Touchable>
       </View>
@@ -244,12 +259,22 @@ export default function MapScreen() {
             <SaveButton place={selected.place} />
           </Touchable>
 
-          <Button
-            label={`Walk there · ${selected.walkMinutes} min`}
-            iconName="navigate"
-            onPress={() => openDirections(selected.place)}
-            style={{ marginTop: space.md }}
-          />
+          {directions.blockedReason(selected.place) ? (
+            <View style={{ marginTop: space.md }}>
+              <Notice tone="caution" text={directions.blockedReason(selected.place) ?? ''} />
+            </View>
+          ) : (
+            <Button
+              label={
+                directions.locating ? 'Finding you…' : `Walk there · ${selected.walkMinutes} min`
+              }
+              iconName="navigate"
+              loading={directions.locating}
+              onPress={() => void directions.open(selected.place)}
+              accessibilityHint={`Reads your current location, then opens walking directions to ${selected.place.name} in Google Maps`}
+              style={{ marginTop: space.md }}
+            />
+          )}
         </Animated.View>
       ) : null}
 

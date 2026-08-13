@@ -12,6 +12,7 @@ import {
   SampleDataBadge,
   SCREEN_PADDING,
 } from '../../src/components/Layout';
+import { LocationStamp } from '../../src/components/LocationStamp';
 import { PlaceRow } from '../../src/components/PlaceRow';
 import { RowSkeleton } from '../../src/components/Skeleton';
 import { Touchable } from '../../src/components/Touchable';
@@ -81,6 +82,13 @@ export default function NearbyScreen() {
               </Txt>
               {!loading && !isLiveData ? <SampleDataBadge compact /> : null}
             </View>
+            {/* Every row quotes a distance; this says what they are measured
+                from and how long ago that was read. */}
+            {status === 'ready' ? (
+              <View style={{ marginTop: space.sm }}>
+                <LocationStamp />
+              </View>
+            ) : null}
           </View>
 
           <Touchable

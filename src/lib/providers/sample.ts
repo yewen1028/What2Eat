@@ -354,13 +354,28 @@ const SEEDS: Seed[] = [
   },
 ];
 
+/** The id prefix every sample listing carries. Owned here, checked elsewhere. */
+const SAMPLE_ID_PREFIX = 'sample-';
+
+/**
+ * True for the invented listings.
+ *
+ * Saved places outlive the session that created them, so "is this real?" cannot
+ * be answered by the current `isLiveData` flag alone: a place bookmarked before
+ * a Places key was added is still fictional afterwards. The id travels with the
+ * place, so it is the honest thing to ask.
+ */
+export function isSamplePlace(place: Pick<Place, 'id'>): boolean {
+  return place.id.startsWith(SAMPLE_ID_PREFIX);
+}
+
 /** Builds the sample neighbourhood around a given origin. */
 export function samplePlaces(origin: Coords): Place[] {
   return SEEDS.map((seed, index) => {
     const { away, bearing, street, ...rest } = seed;
     return {
       ...rest,
-      id: `sample-${index}`,
+      id: `${SAMPLE_ID_PREFIX}${index}`,
       coords: offsetCoords(origin, away, bearing),
       address: street,
     } satisfies Place;

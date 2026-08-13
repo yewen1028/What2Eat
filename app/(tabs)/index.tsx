@@ -18,14 +18,14 @@ import {
   SCREEN_PADDING,
   SectionHeader,
 } from '../../src/components/Layout';
+import { LocationStamp } from '../../src/components/LocationStamp';
 import { Logo } from '../../src/components/Logo';
 import { PlaceRow } from '../../src/components/PlaceRow';
 import { HeroSkeleton, RowSkeleton } from '../../src/components/Skeleton';
 import { Touchable } from '../../src/components/Touchable';
 import { Txt } from '../../src/components/Txt';
-import { openDirections } from '../../src/lib/maps';
 import { formatClock } from '../../src/lib/time';
-import { useNearby } from '../../src/state/nearby';
+import { useDirections, useNearby } from '../../src/state/nearby';
 import { useProfile } from '../../src/state/profile';
 import { useTheme } from '../../src/theme/theme';
 import { icon, MIN_TAP, radius, space } from '../../src/theme/tokens';
@@ -42,7 +42,6 @@ export default function NowScreen() {
 
   const {
     status,
-    areaName,
     usingDemoLocation,
     isLiveData,
     warning,
@@ -57,7 +56,10 @@ export default function NowScreen() {
     shufflePick,
     refresh,
     resetFilters,
+    requestLocation,
   } = useNearby();
+
+  const directions = useDirections();
 
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.value = e.contentOffset.y;
@@ -74,10 +76,18 @@ export default function NowScreen() {
       <View style={styles.mastheadTop}>
         <Txt variant="label" tone="faint" uppercase numberOfLines={1} style={{ flexShrink: 1 }}>
           {WEEKDAYS[now.getDay()]} · {formatClock(now)}
-          {areaName ? ` · ${areaName}` : ''}
         </Txt>
         {status === 'ready' && !isLiveData ? <SampleDataBadge compact /> : null}
       </View>
+
+      {/* The area name moved out of the timestamp line and into a control: it
+          is the origin every distance is measured from, so it needs to carry
+          its own freshness and a way to re-read it. */}
+      {status === 'ready' ? (
+        <View style={{ marginTop: space.md }}>
+          <LocationStamp />
+        </View>
+      ) : null}
       <Txt variant="hero" style={{ marginTop: space.md }}>
         {firstName ? `${moment.greeting}, ${firstName}.` : `${moment.greeting}.`}
       </Txt>
@@ -145,10 +155,15 @@ export default function NowScreen() {
 
             <View style={styles.actions}>
               <Button
-                label="Directions"
+                label={directions.locating ? 'Finding you…' : 'Directions'}
                 iconName="navigate"
-                onPress={() => openDirections(hero.place)}
-                accessibilityHint={`Opens walking directions to ${hero.place.name}`}
+                loading={directions.locating}
+                disabled={!directions.routable(hero.place)}
+                onPress={() => void directions.open(hero.place)}
+                accessibilityHint={
+                  directions.blockedReason(hero.place) ??
+                  `Reads your location, then opens walking directions to ${hero.place.name} in Google Maps`
+                }
                 fullWidth
               />
               <Button
@@ -160,6 +175,43 @@ export default function NowScreen() {
                 style={{ marginLeft: space.md }}
               />
             </View>
+
+            {/* Sits directly under the Directions button it disables, rather
+                than at the foot of the screen where the explanation for a
+                greyed-out control would never be read. */}
+            {!isLiveData ? (
+              <View style={{ marginTop: space.md }}>
+                <Notice
+                  tone="caution"
+                  text={
+                    warning ??
+                    'These are made-up restaurants, laid out around your real position so the app is explorable. Directions are off because there is nowhere real to walk to.'
+                  }
+                />
+                <Button
+                  label="Use real Google listings"
+                  variant="secondary"
+                  iconName="key-outline"
+                  onPress={() => router.push('/profile')}
+                  style={{ marginTop: space.md }}
+                />
+              </View>
+            ) : null}
+
+            {/* Also about route accuracy, so it belongs with the button and not
+                three sections further down. */}
+            {usingDemoLocation ? (
+              <View style={{ marginTop: space.md }}>
+                <Notice text="You are browsing a demo location in Kuala Lumpur, so distances and walk times are measured from there, not from you. Turn on location access for results where you actually are." />
+                <Button
+                  label="Use my real location"
+                  variant="secondary"
+                  iconName="navigate-outline"
+                  onPress={requestLocation}
+                  style={{ marginTop: space.md }}
+                />
+              </View>
+            ) : null}
 
             {hero.reasons.length > 0 ? (
               <View style={styles.reasons}>
@@ -189,30 +241,6 @@ export default function NowScreen() {
               </View>
             ) : null}
 
-            {!isLiveData ? (
-              <View style={{ marginTop: space['2xl'] }}>
-                <Notice
-                  tone="caution"
-                  text={
-                    warning ??
-                    'These are made-up restaurants, laid out around your real position so the app is explorable. Add a Google Places key in You → Listings for real places near you.'
-                  }
-                />
-                <Button
-                  label="Use real Google listings"
-                  variant="secondary"
-                  iconName="key-outline"
-                  onPress={() => router.push('/profile')}
-                  style={{ marginTop: space.md }}
-                />
-              </View>
-            ) : null}
-
-            {usingDemoLocation ? (
-              <View style={{ marginTop: space.md }}>
-                <Notice text="Using a demo location. Turn on location access for results where you actually are." />
-              </View>
-            ) : null}
           </>
         ) : (
           <EmptyState
@@ -252,7 +280,7 @@ function LocationGate() {
       <Txt variant="body" tone="muted" style={{ marginTop: space.sm }}>
         {denied
           ? 'What2Eat needs your location to rank places by how far you would actually have to walk. You can enable it in Settings, or look around a demo neighbourhood first.'
-          : 'What2Eat reads your position once, ranks every highly-rated kitchen around you, and hands you one answer. Nothing is stored or sent anywhere.'}
+          : 'What2Eat reads your position, ranks every highly-rated kitchen around you, and hands you one answer. It re-reads before opening directions so the walk starts from where you are. Nothing is stored or sent anywhere.'}
       </Txt>
 
       {error ? (

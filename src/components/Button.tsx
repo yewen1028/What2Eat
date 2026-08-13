@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import { useTheme } from '../theme/theme';
 import { icon as iconSize, radius, space } from '../theme/tokens';
@@ -13,6 +13,8 @@ interface Props {
   variant?: 'primary' | 'secondary' | 'ghost';
   iconName?: keyof typeof Ionicons.glyphMap;
   disabled?: boolean;
+  /** Shows a spinner in place of the icon and blocks further presses. */
+  loading?: boolean;
   fullWidth?: boolean;
   style?: StyleProp<ViewStyle>;
   accessibilityHint?: string;
@@ -24,6 +26,7 @@ export function Button({
   variant = 'primary',
   iconName,
   disabled,
+  loading,
   fullWidth,
   style,
   accessibilityHint,
@@ -42,13 +45,21 @@ export function Button({
     <Touchable
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
-      disabled={disabled}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      disabled={disabled || loading}
       haptic={variant === 'primary' ? 'medium' : 'light'}
       onPress={onPress}
       style={[styles.base, surface[variant], fullWidth && { flex: 1 }, style]}
     >
       <View style={styles.inner}>
-        {iconName ? (
+        {loading ? (
+          // Same footprint as the icon it replaces, so the label does not shift.
+          <ActivityIndicator
+            size="small"
+            color={fg}
+            style={{ width: iconSize.md, marginRight: space.sm }}
+          />
+        ) : iconName ? (
           <Ionicons name={iconName} size={iconSize.md} color={fg} style={{ marginRight: space.sm }} />
         ) : null}
         <Txt variant="bodyStrong" color={fg} numberOfLines={1}>

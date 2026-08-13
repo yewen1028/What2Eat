@@ -9,6 +9,8 @@ import React, {
   useState,
 } from 'react';
 
+import { distanceMetres } from '../lib/geo';
+import { isRoutable, openDirections } from '../lib/maps';
 import { loadPlaces, PlacesSource } from '../lib/places';
 import { rank } from '../lib/score';
 import { mealMomentFor, MealMoment } from '../lib/time';
@@ -19,11 +21,13 @@ export type LocationStatus = 'idle' | 'asking' | 'ready' | 'denied' | 'error';
 
 /** Used when the user declines location but still wants to look around. */
 const DEMO_ORIGIN: Coords = { lat: 3.1466, lng: 101.7114 };
-const DEMO_AREA_NAME = 'Bukit Bintang, KL';
+export const DEMO_AREA_NAME = 'Bukit Bintang, KL';
 
 interface NearbyValue {
   status: LocationStatus;
   origin: Coords | null;
+  /** When `origin` was actually read, so the UI can admit to a stale fix. */
+  fixedAt: Date | null;
   /** Neighbourhood or city, when reverse geocoding succeeds. */
   areaName: string | null;
   usingDemoLocation: boolean;
@@ -53,6 +57,14 @@ interface NearbyValue {
   requestLocation: () => Promise<void>;
   useDemoLocation: () => void;
   refresh: () => Promise<void>;
+  /**
+   * A fix read *now*, not the one captured when permission was granted. Handing
+   * a place off to Google Maps has to start from where the user is standing at
+   * the moment they tap, which is not necessarily where the list was ranked
+   * from. Falls back to the stored origin if the read fails, and returns the
+   * demo origin unchanged when the demo neighbourhood is in use.
+   */
+  currentPosition: () => Promise<Coords | null>;
 }
 
 const NearbyContext = createContext<NearbyValue | null>(null);
@@ -60,12 +72,23 @@ const NearbyContext = createContext<NearbyValue | null>(null);
 /** How far out we ask the provider to look. */
 const SEARCH_RADIUS_M = 2500;
 
+/**
+ * Walk minutes and the proximity weight are quoted to the minute, and the whole
+ * search circle is 2.5 km. `Balanced` is happy to be 100 m out, which is a
+ * block in the wrong direction; `High` costs a little battery on one reading.
+ */
+const LOCATION_ACCURACY = Location.Accuracy.High;
+
+/** Past this, the old ranking is describing somewhere the user has left. */
+const REFETCH_DISTANCE_M = 150;
+
 export function NearbyProvider({ children }: { children: React.ReactNode }) {
   const { profile, hydrated: profileHydrated } = useProfile();
   const profileFilters = useMemo(() => filtersFromProfile(profile), [profile]);
 
   const [status, setStatus] = useState<LocationStatus>('idle');
   const [origin, setOrigin] = useState<Coords | null>(null);
+  const [fixedAt, setFixedAt] = useState<Date | null>(null);
   const [areaName, setAreaName] = useState<string | null>(null);
   const [usingDemoLocation, setUsingDemoLocation] = useState(false);
   const [places, setPlaces] = useState<Place[]>([]);
@@ -153,6 +176,11 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const readPosition = useCallback(async (): Promise<Coords> => {
+    const position = await Location.getCurrentPositionAsync({ accuracy: LOCATION_ACCURACY });
+    return { lat: position.coords.latitude, lng: position.coords.longitude };
+  }, []);
+
   const requestLocation = useCallback(async () => {
     setStatus('asking');
     setError(null);
@@ -162,14 +190,9 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
         setStatus('denied');
         return;
       }
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      const coords: Coords = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-      };
+      const coords = await readPosition();
       setOrigin(coords);
+      setFixedAt(new Date());
       setUsingDemoLocation(false);
       setStatus('ready');
       void resolveAreaName(coords);
@@ -178,21 +201,67 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
       setStatus('error');
       setError(e instanceof Error ? e.message : 'Could not read your location.');
     }
-  }, [fetchPlaces, resolveAreaName]);
+  }, [fetchPlaces, readPosition, resolveAreaName]);
 
   const useDemoLocation = useCallback(() => {
     setOrigin(DEMO_ORIGIN);
+    setFixedAt(new Date());
     setUsingDemoLocation(true);
     setAreaName(DEMO_AREA_NAME);
     setStatus('ready');
     void fetchPlaces(DEMO_ORIGIN);
   }, [fetchPlaces]);
 
+  /**
+   * Refresh re-reads the GPS first. Re-fetching against the stored origin was
+   * why the list stayed wrong after the user moved: the position was captured
+   * once, at permission time, and every later "refresh" faithfully re-ranked
+   * around wherever they had been standing then.
+   */
   const refresh = useCallback(async () => {
     if (!origin) return;
     setNow(new Date());
-    await fetchPlaces(origin, true);
-  }, [fetchPlaces, origin]);
+
+    let coords = origin;
+    if (!usingDemoLocation) {
+      try {
+        const fresh = await readPosition();
+        // Re-geocode only on a real move; a few metres of GPS jitter should not
+        // repaint the area name on every pull.
+        if (distanceMetres(origin, fresh) > REFETCH_DISTANCE_M) void resolveAreaName(fresh);
+        coords = fresh;
+        setOrigin(fresh);
+        setFixedAt(new Date());
+      } catch {
+        // A failed re-read is not a failed refresh — the listings are still
+        // worth updating from the last known position.
+      }
+    }
+
+    await fetchPlaces(coords, true);
+  }, [fetchPlaces, origin, readPosition, resolveAreaName, usingDemoLocation]);
+
+  /**
+   * Re-reads the GPS on demand without touching the ranking.
+   *
+   * `refresh` also re-fetches and re-ranks, which is far too much to do behind
+   * a Directions tap — the list would reshuffle under the user as the maps app
+   * opened. This only moves the origin.
+   */
+  const currentPosition = useCallback(async (): Promise<Coords | null> => {
+    if (usingDemoLocation || status !== 'ready') return origin;
+    try {
+      const fresh = await readPosition();
+      setOrigin(fresh);
+      setFixedAt(new Date());
+      if (origin && distanceMetres(origin, fresh) > REFETCH_DISTANCE_M) void resolveAreaName(fresh);
+      return fresh;
+    } catch {
+      // A denied or timed-out read still leaves the last known fix, which beats
+      // handing the maps app no origin at all.
+      return origin;
+    }
+  }, [origin, readPosition, resolveAreaName, status, usingDemoLocation]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -229,6 +298,7 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
     () => ({
       status,
       origin,
+      fixedAt,
       areaName,
       usingDemoLocation,
       source,
@@ -251,10 +321,12 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
       requestLocation,
       useDemoLocation,
       refresh,
+      currentPosition,
     }),
     [
       status,
       origin,
+      fixedAt,
       areaName,
       usingDemoLocation,
       source,
@@ -275,6 +347,7 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
       requestLocation,
       useDemoLocation,
       refresh,
+      currentPosition,
     ],
   );
 
@@ -293,6 +366,57 @@ export function useNearby(): NearbyValue {
   const ctx = useContext(NearbyContext);
   if (!ctx) throw new Error('useNearby must be used inside <NearbyProvider>');
   return ctx;
+}
+
+export interface DirectionsController {
+  /** Reads a live fix, then hands the place to Google Maps. */
+  open: (place: Place) => Promise<void>;
+  /** True while the fix is being read, so the button can say so. */
+  locating: boolean;
+  /** False for the fictional sample dataset. */
+  routable: (place: Place) => boolean;
+  /**
+   * Why this place cannot be routed to, ready to show. Null when it can be.
+   * Per-place rather than per-session: a sample listing bookmarked before a
+   * Places key was added is still fictional after one is.
+   */
+  blockedReason: (place: Place) => string | null;
+}
+
+/**
+ * The one way to open directions.
+ *
+ * Every Directions button goes through this so they all behave the same: read
+ * the GPS at the moment of the tap, route from that, and refuse outright on
+ * sample data rather than walking someone to an invented address.
+ */
+export function useDirections(): DirectionsController {
+  const { currentPosition } = useNearby();
+  const [locating, setLocating] = useState(false);
+
+  const open = useCallback(
+    async (place: Place) => {
+      if (!isRoutable(place)) return;
+      setLocating(true);
+      try {
+        const here = await currentPosition();
+        openDirections(place, here);
+      } finally {
+        setLocating(false);
+      }
+    },
+    [currentPosition],
+  );
+
+  return {
+    open,
+    locating,
+    routable: isRoutable,
+    blockedReason: (place) =>
+      isRoutable(place)
+        ? null
+        : 'This is a sample listing, so there is nowhere real to walk to. Add a Google Places key in You → Listings for real places and directions.',
+  };
 }
 
 /** Looks a place up across whatever is currently loaded. */

@@ -23,7 +23,7 @@ interface Props {
   accessibilityLabel?: string;
   accessibilityHint?: string;
   accessibilityRole?: AccessibilityRole;
-  accessibilityState?: { selected?: boolean; disabled?: boolean };
+  accessibilityState?: { selected?: boolean; disabled?: boolean; busy?: boolean };
   hitSlop?: number | { top: number; bottom: number; left: number; right: number };
   children: React.ReactNode;
 }
@@ -41,6 +41,7 @@ export function Touchable({
   haptic = 'light',
   style,
   accessibilityRole = 'button',
+  accessibilityState,
   children,
   ...a11y
 }: Props) {
@@ -64,14 +65,18 @@ export function Touchable({
   return (
     <AnimatedPressable
       accessibilityRole={accessibilityRole}
-      accessibilityState={{ disabled, ...a11y.accessibilityState }}
+      {...a11y}
+      // After the spread: `accessibilityState` is destructured out of `a11y`
+      // above precisely so this merge survives. Spreading it last used to
+      // replace the whole object and drop `disabled`, leaving every disabled
+      // control announced as tappable.
+      accessibilityState={{ disabled, ...accessibilityState }}
       disabled={disabled}
       onLongPress={onLongPress}
       onPress={handlePress}
       onPressIn={() => (pressed.value = withTiming(1, { duration: 90 }))}
       onPressOut={() => (pressed.value = withTiming(0, { duration: motion.fast }))}
       style={[style, animatedStyle]}
-      {...a11y}
     >
       {children}
     </AnimatedPressable>

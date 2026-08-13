@@ -155,7 +155,23 @@ export default function FiltersScreen() {
           accessibilityHint="Returns to the defaults set in your profile"
           style={{ marginRight: space.md }}
         />
-        <Button label="Show results" onPress={() => router.back()} fullWidth />
+        {/* The count lives on the button because that is where the decision is
+            made: committing to a filter set that matches nothing should be
+            visible before the tap, not after it. */}
+        <Button
+          label={
+            suggestions.length === 0
+              ? 'Nothing matches'
+              : `Show ${suggestions.length} ${suggestions.length === 1 ? 'place' : 'places'}`
+          }
+          onPress={() => router.back()}
+          accessibilityHint={
+            suggestions.length === 0
+              ? 'Closes filters. Loosen a filter above to get results'
+              : 'Closes filters and returns to the list'
+          }
+          fullWidth
+        />
       </View>
     </View>
   );

@@ -77,7 +77,7 @@ export function buildSuggestion(
 ): Suggestion {
   const distance = distanceMetres(origin, place.coords);
   const walk = walkMinutes(distance);
-  const open = openStateFor(place.hours, at);
+  const open = openStateFor(place.hours, at, place.utcOffsetMinutes);
 
   const quality = qualityScore(place);
   const proximity = proximityScore(distance);

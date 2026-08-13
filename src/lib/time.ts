@@ -108,6 +108,18 @@ export function formatMinutesOfDay(minutes: number): string {
   return formatClock(d);
 }
 
+/**
+ * Re-expresses an instant as a Date whose local getters read the *place's* wall
+ * clock. Opening hours come from Google in the place's own local time, so
+ * judging them against the device clock is only right while the two agree — it
+ * silently reports every place open (or shut) by the offset otherwise, which is
+ * the normal case on a simulator set to another region.
+ */
+export function placeLocalDate(at: Date, utcOffsetMinutes?: number): Date {
+  if (utcOffsetMinutes === undefined) return at;
+  return new Date(at.getTime() + (utcOffsetMinutes + at.getTimezoneOffset()) * 60_000);
+}
+
 export interface OpenState {
   isOpen: boolean;
   /** Minutes until close, when open. */
@@ -122,9 +134,14 @@ export interface OpenState {
  * Resolves opening state, accounting for intervals that spill past midnight —
  * a place that closes at 02:00 is still open when you check at 00:30.
  */
-export function openStateFor(hours: WeeklyHours, at: Date): OpenState {
-  const day = at.getDay();
-  const now = minutesOfDay(at);
+export function openStateFor(
+  hours: WeeklyHours,
+  at: Date,
+  utcOffsetMinutes?: number,
+): OpenState {
+  const local = placeLocalDate(at, utcOffsetMinutes);
+  const day = local.getDay();
+  const now = minutesOfDay(local);
   const today = hours[day] ?? [];
   const yesterday = hours[(day + 6) % 7] ?? [];
 
@@ -189,3 +206,25 @@ export function formatIntervals(intervals: OpenInterval[]): string {
 }
 
 export const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** Past this, a position fix is old enough to be worth re-reading. */
+export const STALE_FIX_MINUTES = 5;
+
+/**
+ * How old a GPS fix is, in words.
+ *
+ * Distances and walk times are quoted to the minute off a single reading, so
+ * the app should say how old that reading is rather than implying it is live.
+ */
+export function formatFixAge(fixedAt: Date, now: Date): string {
+  const minutes = Math.max(0, Math.floor((now.getTime() - fixedAt.getTime()) / 60_000));
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  return hours === 1 ? 'an hour ago' : `${hours} hours ago`;
+}
+
+export function isFixStale(fixedAt: Date | null, now: Date): boolean {
+  if (!fixedAt) return false;
+  return now.getTime() - fixedAt.getTime() > STALE_FIX_MINUTES * 60_000;
+}

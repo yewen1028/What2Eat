@@ -15,6 +15,7 @@ import { Chip, OpenBadge, PriceLevel, Rating } from '../../src/components/Badges
 import { Button } from '../../src/components/Button';
 import {
   EmptyState,
+  Notice,
   SampleDataBadge,
   SCREEN_PADDING,
   SectionHeader,
@@ -25,10 +26,9 @@ import { ScoreBreakdown } from '../../src/components/ScoreBreakdown';
 import { Touchable } from '../../src/components/Touchable';
 import { Txt } from '../../src/components/Txt';
 import { formatDistance } from '../../src/lib/geo';
-import { openDirections } from '../../src/lib/maps';
 import { bayesianRating, formatCount } from '../../src/lib/score';
 import { formatIntervals, WEEKDAY_LABELS } from '../../src/lib/time';
-import { useNearby, usePlace } from '../../src/state/nearby';
+import { useDirections, useNearby, usePlace } from '../../src/state/nearby';
 import { useTheme } from '../../src/theme/theme';
 import { icon, MIN_TAP, radius, space } from '../../src/theme/tokens';
 
@@ -40,6 +40,7 @@ export default function PlaceScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { now, isLiveData } = useNearby();
+  const directions = useDirections();
   const suggestion = usePlace(id);
 
   const scrollY = useSharedValue(0);
@@ -84,6 +85,7 @@ export default function PlaceScreen() {
   }
 
   const { place } = suggestion;
+  const noRoute = directions.blockedReason(place);
   const today = now.getDay();
   const adjusted = bayesianRating(place.rating, place.reviewCount);
 
@@ -245,13 +247,22 @@ export default function PlaceScreen() {
           },
         ]}
       >
-        <Button
-          label="Walking directions"
-          iconName="navigate"
-          onPress={() => openDirections(place)}
-          accessibilityHint={`Opens directions to ${place.name} in your maps app`}
-          fullWidth
-        />
+        {noRoute ? (
+          <Notice tone="caution" text={noRoute} />
+        ) : (
+          <Button
+            label={
+              directions.locating
+                ? 'Finding you…'
+                : `Walking directions · ${suggestion.walkMinutes} min`
+            }
+            iconName="navigate"
+            loading={directions.locating}
+            onPress={() => void directions.open(place)}
+            accessibilityHint={`Reads your current location, then opens walking directions to ${place.name} in Google Maps`}
+            fullWidth
+          />
+        )}
       </View>
     </View>
   );
