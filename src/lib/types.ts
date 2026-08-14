@@ -119,6 +119,16 @@ export interface Filters {
   vegetarianOnly: boolean;
 }
 
+/**
+ * The rungs each numeric filter can sit on.
+ *
+ * Shared so the filters screen, the profile defaults and `diagnoseFilters` all
+ * move between the same values: a diagnosis that suggested "27 minutes" would
+ * land the user on a filters screen where no chip is selected.
+ */
+export const WALK_OPTIONS = [5, 10, 20, 40] as const;
+export const RATING_OPTIONS = [0, 4, 4.3, 4.5] as const;
+
 export const DEFAULT_FILTERS: Filters = {
   maxWalkMinutes: 20,
   minRating: 4,

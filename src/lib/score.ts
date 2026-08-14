@@ -1,6 +1,6 @@
 import { distanceMetres, formatDistance, walkMinutes } from './geo';
 import { formatDuration, MEAL_PERIOD_LABELS, mealPeriodFor, openStateFor } from './time';
-import { Coords, Filters, MealPeriod, Place, Suggestion } from './types';
+import { Coords, Filters, MealPeriod, Place, Suggestion, WALK_OPTIONS } from './types';
 
 
 /**
@@ -246,6 +246,91 @@ export function rank(
     .map((p) => buildSuggestion(p, origin, at, period, scoreTiming))
     .filter((s) => passesFilters(s, filters))
     .sort((a, b) => b.score - a.score);
+}
+
+export interface FilterDiagnosis {
+  /** Which filter to let go of. */
+  key: keyof Filters;
+  /** How many places appear once it is relaxed. Always greater than now. */
+  gain: number;
+  /** What the button should say, e.g. "Include places that are closed". */
+  action: string;
+  /** The full filter set with that one rung moved, ready to hand to `setFilters`. */
+  relaxed: Filters;
+}
+
+/**
+ * Which single filter is emptying the list.
+ *
+ * "Widen the walk or drop the minimum rating" is a guess dressed as advice: the
+ * app already knows exactly which filter is responsible, because it can just try
+ * relaxing each one and count. Naming the culprit turns a dead end into one tap,
+ * and it stops the user working through filters that were never the problem.
+ *
+ * Each candidate moves to a value that exists on the filters screen, so the tap
+ * leaves the UI in a state the user can see and reverse.
+ */
+export function diagnoseFilters(
+  places: Place[],
+  origin: Coords,
+  at: Date,
+  filters: Filters,
+): FilterDiagnosis | null {
+  const count = (f: Filters) => rank(places, origin, at, f).length;
+  const current = count(filters);
+
+  const candidates: Omit<FilterDiagnosis, 'gain'>[] = [];
+
+  if (filters.openOnly) {
+    candidates.push({
+      key: 'openOnly',
+      action: 'Include places that are closed',
+      relaxed: { ...filters, openOnly: false },
+    });
+  }
+
+  // One rung further, not "any distance": the point is the shortest widening
+  // that actually helps, and every rung is a chip on the filters screen.
+  const nextWalk = WALK_OPTIONS.find((m) => m > filters.maxWalkMinutes);
+  if (nextWalk !== undefined) {
+    candidates.push({
+      key: 'maxWalkMinutes',
+      action: `Walk up to ${nextWalk} min`,
+      relaxed: { ...filters, maxWalkMinutes: nextWalk },
+    });
+  }
+
+  if (filters.minRating > 0) {
+    candidates.push({
+      key: 'minRating',
+      action: 'Accept any rating',
+      relaxed: { ...filters, minRating: 0 },
+    });
+  }
+
+  if (filters.priceLevels.length < 4) {
+    candidates.push({
+      key: 'priceLevels',
+      action: 'Accept any price',
+      relaxed: { ...filters, priceLevels: [1, 2, 3, 4] },
+    });
+  }
+
+  if (filters.vegetarianOnly) {
+    candidates.push({
+      key: 'vegetarianOnly',
+      action: 'Drop the vegetarian filter',
+      relaxed: { ...filters, vegetarianOnly: false },
+    });
+  }
+
+  let best: FilterDiagnosis | null = null;
+  for (const candidate of candidates) {
+    const gain = count(candidate.relaxed);
+    if (gain > current && (!best || gain > best.gain)) best = { ...candidate, gain };
+  }
+
+  return best;
 }
 
 /** Human summary of why the top pick won, for the hero card. */

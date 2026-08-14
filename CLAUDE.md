@@ -102,6 +102,16 @@ under whatever happens to be open. The timing weight moves to meal fit, and
 pins still show real open/closed state. Meal periods are Malaysian: `late` is
 labelled **Supper**, `coffee` is **Tea time** (`MEAL_PERIOD_LABELS`).
 
+**3c. An empty list must name its cause, not guess at it.**
+`diagnoseFilters()` relaxes each filter in turn and counts, so `<NoMatches>` can
+say which one is responsible and move it in a single tap. Do not replace this
+with generic "try widening your filters" copy — the app has the data. Candidates
+relax to values that exist on the filters screen (`WALK_OPTIONS`,
+`RATING_OPTIONS` in `types.ts`), so the tap leaves the UI in a state the user can
+see and reverse. It returns null rather than blaming a filter it has not
+identified, and `NoMatches` keeps `places.length === 0` (nothing loaded) separate
+from "filters too tight" — they need opposite advice.
+
 **4. Colour is never the only signal.**
 Open/closed = filled vs hollow dot **and** wording. Selected chip = fill, border
 weight **and** a check glyph. Score bars are always paired with a number.

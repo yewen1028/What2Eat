@@ -12,7 +12,7 @@ import React, {
 import { distanceMetres } from '../lib/geo';
 import { isRoutable, openDirections } from '../lib/maps';
 import { isRealSource, loadPlaces, PlacesSource } from '../lib/places';
-import { rank } from '../lib/score';
+import { diagnoseFilters, FilterDiagnosis, rank } from '../lib/score';
 import { mealMomentFor, MealMoment } from '../lib/time';
 import { Coords, Filters, Place, Suggestion } from '../lib/types';
 import { filtersFromProfile, useProfile } from './profile';
@@ -49,8 +49,12 @@ interface NearbyValue {
   places: Place[];
   /** Filtered and ranked, best first. */
   suggestions: Suggestion[];
-  /** Ranked ignoring filters — used to explain an empty result set. */
-  unfilteredCount: number;
+  /**
+   * Which single filter to relax when nothing matches, and what relaxing it
+   * would yield. Null when the filters are not the problem — nowhere nearby is
+   * loaded at all — so an empty list can say which of the two it is.
+   */
+  diagnosis: FilterDiagnosis | null;
   filters: Filters;
   setFilters: (next: Filters) => void;
   resetFilters: () => void;
@@ -285,9 +289,16 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
     [places, origin, now, filters],
   );
 
-  const unfilteredCount = useMemo(
-    () => (origin ? rank(places, origin, now, { ...filters, ...UNFILTERED }).length : 0),
-    [places, origin, now, filters],
+  /**
+   * Only worth computing when the list is empty, which is the only time it is
+   * shown: it re-ranks the whole set once per candidate filter.
+   */
+  const diagnosis = useMemo(
+    () =>
+      origin && suggestions.length === 0 && places.length > 0
+        ? diagnoseFilters(places, origin, now, filters)
+        : null,
+    [places, origin, now, filters, suggestions.length],
   );
 
   const shufflePick = useCallback(() => {
@@ -316,7 +327,7 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
       moment: mealMomentFor(now),
       places,
       suggestions,
-      unfilteredCount,
+      diagnosis,
       filters,
       setFilters: updateFilters,
       resetFilters,
@@ -342,7 +353,7 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
       now,
       places,
       suggestions,
-      unfilteredCount,
+      diagnosis,
       filters,
       profileFilters,
       updateFilters,
@@ -358,14 +369,6 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
 
   return <NearbyContext.Provider value={value}>{children}</NearbyContext.Provider>;
 }
-
-const UNFILTERED: Partial<Filters> = {
-  maxWalkMinutes: Number.POSITIVE_INFINITY,
-  minRating: 0,
-  openOnly: false,
-  priceLevels: [1, 2, 3, 4],
-  vegetarianOnly: false,
-};
 
 export function useNearby(): NearbyValue {
   const ctx = useContext(NearbyContext);

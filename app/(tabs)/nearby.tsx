@@ -13,11 +13,12 @@ import {
   SCREEN_PADDING,
 } from '../../src/components/Layout';
 import { LocationStamp } from '../../src/components/LocationStamp';
+import { NoMatches } from '../../src/components/NoMatches';
 import { PlaceRow } from '../../src/components/PlaceRow';
 import { RowSkeleton } from '../../src/components/Skeleton';
 import { Touchable } from '../../src/components/Touchable';
 import { Txt } from '../../src/components/Txt';
-import { bayesianRating } from '../../src/lib/score';
+import { bayesianRating, isRated } from '../../src/lib/score';
 import { Suggestion } from '../../src/lib/types';
 import { useNearby } from '../../src/state/nearby';
 import { useTheme } from '../../src/theme/theme';
@@ -46,7 +47,6 @@ export default function NearbyScreen() {
     places,
     filters,
     setFilters,
-    resetFilters,
     isLiveData,
     warning,
   } = useNearby();
@@ -185,14 +185,7 @@ export default function NearbyScreen() {
               </View>
             ) : null
           }
-          ListEmptyComponent={
-            <EmptyState
-              iconName="funnel-outline"
-              title="No matches"
-              body="Nothing here clears every filter at once. Loosening the walking distance usually opens things up fastest."
-              action={<Button label="Reset filters" onPress={resetFilters} />}
-            />
-          }
+          ListEmptyComponent={<NoMatches />}
         />
       )}
     </View>
@@ -203,12 +196,20 @@ function sortSuggestions(list: Suggestion[], sort: Sort): Suggestion[] {
   const copy = [...list];
   if (sort === 'closest') return copy.sort((a, b) => a.distance - b.distance);
   if (sort === 'rating') {
-    // Bayesian, so a 5.0 from a handful of reviews cannot top the list.
-    return copy.sort(
-      (a, b) =>
+    // Unrated places sink. The Bayesian prior scores them 4.0, which parked
+    // every OpenStreetMap listing in the middle of a list explicitly sorted by
+    // rating — above genuinely rated 3.9s, on a number nobody published. The
+    // sort simply has nothing to say about them, so they go last, in their
+    // best-match order.
+    return copy.sort((a, b) => {
+      const rated = Number(isRated(b.place.rating)) - Number(isRated(a.place.rating));
+      if (rated !== 0) return rated;
+      if (!isRated(a.place.rating)) return b.score - a.score;
+      return (
         bayesianRating(b.place.rating, b.place.reviewCount) -
-        bayesianRating(a.place.rating, a.place.reviewCount),
-    );
+        bayesianRating(a.place.rating, a.place.reviewCount)
+      );
+    });
   }
   return copy;
 }

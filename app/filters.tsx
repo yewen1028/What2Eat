@@ -10,12 +10,11 @@ import { SCREEN_PADDING, SectionHeader } from '../src/components/Layout';
 import { Toggle } from '../src/components/Toggle';
 import { Touchable } from '../src/components/Touchable';
 import { Txt } from '../src/components/Txt';
+import { RATING_OPTIONS, WALK_OPTIONS } from '../src/lib/types';
 import { useNearby } from '../src/state/nearby';
 import { useTheme } from '../src/theme/theme';
 import { icon, MIN_TAP, radius, space } from '../src/theme/tokens';
 
-const WALK_OPTIONS = [5, 10, 20, 40];
-const RATING_OPTIONS = [0, 4, 4.3, 4.5];
 const PRICE_OPTIONS: { level: 1 | 2 | 3 | 4; label: string; hint: string }[] = [
   { level: 1, label: '$', hint: 'Cheap eats' },
   { level: 2, label: '$$', hint: 'Moderate' },
@@ -67,7 +66,7 @@ export default function FiltersScreen() {
       >
         <Row
           title="Open right now"
-          subtitle="Hides kitchens that have already closed for the night."
+          subtitle="Hides kitchens that have already closed. Places with no published hours stay, since nobody has recorded when they open."
         >
           <Toggle
             value={filters.openOnly}
@@ -134,6 +133,10 @@ export default function FiltersScreen() {
               />
             ))}
           </View>
+          <Txt variant="small" tone="muted" style={{ marginTop: space.md }}>
+            Plenty of places publish no price at all, especially street food. Those are kept
+            whatever you pick here rather than being ruled out on a band nobody set.
+          </Txt>
         </View>
       </ScrollView>
 

@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../src/components/Button';
 import { Chip } from '../../src/components/Badges';
 import { HeroPick } from '../../src/components/HeroPick';
+import { NoMatches } from '../../src/components/NoMatches';
 import {
   EmptyState,
   Notice,
@@ -56,7 +57,6 @@ export default function NowScreen() {
     pickIndex,
     shufflePick,
     refresh,
-    resetFilters,
     requestLocation,
   } = useNearby();
 
@@ -266,17 +266,7 @@ export default function NowScreen() {
 
           </>
         ) : (
-          <EmptyState
-            iconName="funnel-outline"
-            title="Nothing matches right now"
-            body="Your filters are stricter than the neighbourhood. Widen the walk or drop the minimum rating."
-            action={
-              <View style={{ flexDirection: 'row', gap: space.md }}>
-                <Button label="Reset filters" onPress={resetFilters} />
-                <Button label="Adjust" variant="secondary" onPress={() => router.push('/filters')} />
-              </View>
-            }
-          />
+          <NoMatches />
         )}
       </Animated.ScrollView>
     </View>

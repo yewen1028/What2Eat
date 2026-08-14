@@ -12,6 +12,7 @@ import { Toggle } from '../../src/components/Toggle';
 import { Touchable } from '../../src/components/Touchable';
 import { Txt } from '../../src/components/Txt';
 import { PlacesSource } from '../../src/lib/places';
+import { RATING_OPTIONS, WALK_OPTIONS } from '../../src/lib/types';
 import { formatFixAge } from '../../src/lib/time';
 import { DEMO_AREA_NAME, useNearby } from '../../src/state/nearby';
 import { initialsFor, useProfile } from '../../src/state/profile';
@@ -19,8 +20,6 @@ import { useSaved } from '../../src/state/saved';
 import { useTheme } from '../../src/theme/theme';
 import { fonts, icon, MIN_TAP, radius, space } from '../../src/theme/tokens';
 
-const WALK_OPTIONS = [5, 10, 20, 40];
-const RATING_OPTIONS = [0, 4, 4.3, 4.5];
 const PRICE_OPTIONS: { level: number; label: string; hint: string }[] = [
   { level: 1, label: '$', hint: 'Cheap eats' },
   { level: 2, label: '$$', hint: 'Moderate' },
