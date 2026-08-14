@@ -11,7 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Chip, OpenBadge, PriceLevel, Rating } from '../../src/components/Badges';
+import { Chip, hasPriceInfo, OpenBadge, PriceLevel, Rating } from '../../src/components/Badges';
 import { Button } from '../../src/components/Button';
 import {
   EmptyState,
@@ -21,12 +21,12 @@ import {
   SectionHeader,
 } from '../../src/components/Layout';
 import { PlaceImage } from '../../src/components/PlaceImage';
+import { PlaceMap } from '../../src/components/PlaceMap';
 import { SaveButton } from '../../src/components/SaveButton';
 import { ScoreBreakdown } from '../../src/components/ScoreBreakdown';
 import { Touchable } from '../../src/components/Touchable';
 import { Txt } from '../../src/components/Txt';
 import { formatDistance } from '../../src/lib/geo';
-import { bayesianRating, formatCount } from '../../src/lib/score';
 import { formatIntervals, WEEKDAY_LABELS } from '../../src/lib/time';
 import { useDirections, useNearby, usePlace } from '../../src/state/nearby';
 import { useTheme } from '../../src/theme/theme';
@@ -87,7 +87,6 @@ export default function PlaceScreen() {
   const { place } = suggestion;
   const noRoute = directions.blockedReason(place);
   const today = now.getDay();
-  const adjusted = bayesianRating(place.rating, place.reviewCount);
 
   return (
     <View style={[styles.screen, { backgroundColor: c.bg }]}>
@@ -124,10 +123,16 @@ export default function PlaceScreen() {
 
           <View style={styles.metaRow}>
             <Rating rating={place.rating} reviewCount={place.reviewCount} />
-            <Txt variant="small" tone="faint" style={styles.sep}>
-              ·
-            </Txt>
-            <PriceLevel level={place.priceLevel} />
+            {/* The separator belongs to the price, so it goes when the price
+                does — otherwise every unpriced listing trails a lone "·". */}
+            {hasPriceInfo(place) ? (
+              <>
+                <Txt variant="small" tone="faint" style={styles.sep}>
+                  ·
+                </Txt>
+                <PriceLevel level={place.priceLevel} priceText={place.priceText} />
+              </>
+            ) : null}
           </View>
 
           <View style={[styles.metaRow, { marginTop: space.sm }]}>
@@ -140,9 +145,15 @@ export default function PlaceScreen() {
             </Txt>
           </View>
 
-          <Txt variant="body" tone="muted" style={{ marginTop: space.md }}>
-            {place.address}
-          </Txt>
+          {/* OpenStreetMap listings often carry no `addr:*` tags at all. An
+              empty Txt still takes its margin, leaving an unexplained gap. */}
+          {place.address ? (
+            <Txt variant="body" tone="muted" style={{ marginTop: space.md }}>
+              {place.address}
+            </Txt>
+          ) : null}
+
+          <PlaceMap place={place} />
 
           {suggestion.reasons.length > 0 ? (
             <View style={styles.section}>
@@ -182,7 +193,12 @@ export default function PlaceScreen() {
 
           <View style={styles.section}>
             <SectionHeader title="Opening hours" />
-            {WEEKDAY_LABELS.map((label, day) => {
+            {/* Seven rows reading "Closed" would be a flat lie for a place
+                whose hours simply were not recorded. */}
+            {place.hoursUnknown ? (
+              <Notice text="Nobody has published opening hours for this place, so it is not scored on whether it is open. Worth a call before you walk over." />
+            ) : (
+            WEEKDAY_LABELS.map((label, day) => {
               const isToday = day === today;
               return (
                 <View
@@ -210,7 +226,8 @@ export default function PlaceScreen() {
                   </Txt>
                 </View>
               );
-            })}
+            })
+            )}
           </View>
         </View>
       </Animated.ScrollView>

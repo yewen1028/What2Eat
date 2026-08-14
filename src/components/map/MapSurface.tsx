@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import MapView, { Circle, Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 
+import { isRated, ratingLabel } from '../../lib/score';
 import { useTheme } from '../../theme/theme';
 import { radius, space } from '../../theme/tokens';
 import { Txt } from '../Txt';
@@ -98,7 +99,7 @@ function GoogleMap({
               e.stopPropagation();
               onSelect(m.id);
             }}
-            accessibilityLabel={`${m.label}, rated ${m.rating.toFixed(1)}`}
+            accessibilityLabel={`${m.label}, ${ratingLabel(m.rating)}`}
             zIndex={selected ? 3 : m.highlight ? 2 : 1}
           >
             <Pin
@@ -106,7 +107,7 @@ function GoogleMap({
               rating={m.rating}
               highlight={m.highlight}
               selected={selected}
-              dimmed={!m.isOpen}
+              dimmed={!m.isOpen && !m.hoursUnknown}
             />
           </Marker>
         );
@@ -154,9 +155,15 @@ function Pin({
         <Txt variant="labelBold" color={fg} numberOfLines={1} style={styles.pinLabel}>
           {label}
         </Txt>
-        <Txt variant="label" color={fg} style={styles.pinRating}>
-          {rating.toFixed(1)}
-        </Txt>
+        {/* An unrated place gets a name and nothing else. "0.0" on a pin is a
+            damning score printed over a real business on no evidence, and the
+            pin has no room to spell out "no rating" — silence is the honest
+            rendering, and it matches SchematicMap, which never shows one. */}
+        {isRated(rating) ? (
+          <Txt variant="label" color={fg} style={styles.pinRating}>
+            {rating.toFixed(1)}
+          </Txt>
+        ) : null}
       </View>
       <View style={[styles.pinStem, { backgroundColor: bg, borderColor: border }]} />
     </View>

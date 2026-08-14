@@ -49,7 +49,7 @@ export function EmptyState({ iconName, title, body, action }: EmptyStateProps) {
 
 /**
  * Marks listings that are the built-in fictional dataset rather than real
- * Google results. It appears on every surface that shows a place name, because
+ * businesses. It appears on every surface that shows a place name, because
  * the one thing the app must never do is let invented restaurants pass for
  * real ones.
  */

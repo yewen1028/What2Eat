@@ -22,16 +22,28 @@ export interface Place {
   cuisine: string;
   /** Free-form tags used for filtering and the "why this" rationale. */
   tags: string[];
+  /**
+   * 0 means *unrated*, not "rated zero". OpenStreetMap publishes no ratings at
+   * all, and a real business must never be shown a score we invented. Use
+   * `isRated()` rather than testing this directly.
+   */
   rating: number;
   reviewCount: number;
-  /** 1–4, mirroring the familiar $–$$$$ convention. */
-  priceLevel: 1 | 2 | 3 | 4;
+  /** 1–4, mirroring the familiar $–$$$$ convention. Undefined when unknown. */
+  priceLevel?: 1 | 2 | 3 | 4;
   /** Real per-person range in local currency when the provider publishes one. */
   priceText?: string;
   coords: Coords;
   address: string;
   photo?: string;
   hours: WeeklyHours;
+  /**
+   * True when the provider publishes no opening hours, so `hours` is empty
+   * because nothing is known — not because the place is shut all week. The two
+   * must stay distinct: "open now" would otherwise silently discard every
+   * untagged OSM listing, which is most of them.
+   */
+  hoursUnknown?: boolean;
   /**
    * The place's offset from UTC, in minutes. `hours` are in the *place's* local
    * time, which is not the device's when the phone is roaming or a simulator is
@@ -53,6 +65,12 @@ export interface Suggestion {
   /** Minutes on foot at 80 m/min. */
   walkMinutes: number;
   isOpen: boolean;
+  /**
+   * Mirrors `place.hoursUnknown`. Carried here so anything reading open state
+   * can tell "we know it is shut" from "nobody recorded the hours" without
+   * reaching for the whole `Place`.
+   */
+  hoursUnknown: boolean;
   /** Minutes until close, when open and closing within the hour. */
   closingInMinutes: number | null;
   /** Minutes until it opens, when currently closed. */
@@ -67,6 +85,15 @@ export interface Suggestion {
 export interface ScoreComponent {
   /** 0–1 before weighting. */
   value: number;
+  /**
+   * The share of the score this component actually carried, 0–1.
+   *
+   * Not a constant: `buildSuggestion` moves timing's weight onto fit when the
+   * hours are unknown or the user is browsing another sitting. Reading it off
+   * `WEIGHTS` instead would print 18%/12% while the sort used 30%/0%, which is
+   * the one thing the breakdown exists not to do.
+   */
+  weight: number;
   /** How much this component contributed to the final score. */
   weighted: number;
   /** Plain-language statement of the input, e.g. "480 m away". */

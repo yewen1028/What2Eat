@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
-import { formatCount } from '../lib/score';
+import { formatCount, isRated } from '../lib/score';
 import { formatDuration, formatMinutesOfDay } from '../lib/time';
 import { Suggestion } from '../lib/types';
 import { useTheme } from '../theme/theme';
@@ -21,6 +21,30 @@ export function Rating({ rating, reviewCount, onPhoto, compact }: RatingProps) {
   const { c } = useTheme();
   const textColor = onPhoto ? '#FFFFFF' : c.text;
   const mutedColor = onPhoto ? 'rgba(255,255,255,0.78)' : c.textMuted;
+
+  /**
+   * OpenStreetMap has no ratings, so its listings arrive unrated. Saying so is
+   * the only honest option: "0.0" reads as a damning score for a real business,
+   * and a hollow star with no number reads as a bug.
+   */
+  if (!isRated(rating)) {
+    return (
+      <View style={styles.row} accessibilityLabel="No rating published">
+        <Ionicons
+          name="star-outline"
+          size={compact ? icon.sm - 2 : icon.sm}
+          color={onPhoto ? 'rgba(255,255,255,0.6)' : c.textFaint}
+        />
+        <Txt
+          variant={compact ? 'small' : 'smallStrong'}
+          color={mutedColor}
+          style={{ marginLeft: 5 }}
+        >
+          No rating
+        </Txt>
+      </View>
+    );
+  }
 
   return (
     <View
@@ -44,13 +68,26 @@ export function Rating({ rating, reviewCount, onPhoto, compact }: RatingProps) {
   );
 }
 
+/**
+ * Whether `<PriceLevel>` will render anything for this place.
+ *
+ * `PriceLevel` returns null when the provider publishes no band, which strands
+ * any separator a caller drew in front of it — a lone "·" hanging off the end of
+ * the row on every OpenStreetMap listing. Callers gate the separator on this so
+ * the rule lives next to the component that implements it.
+ */
+export function hasPriceInfo(place: { priceLevel?: number; priceText?: string }): boolean {
+  return Boolean(place.priceText) || place.priceLevel !== undefined;
+}
+
 export function PriceLevel({
   level,
   priceText,
   onPhoto,
 }: {
-  level: number;
-  /** Real range from the provider, e.g. "RM 15–30". Preferred when present. */
+  /** Undefined when the provider publishes no price band. */
+  level?: number;
+  /** Real range from the provider, e.g. "RM 15-30". Preferred when present. */
   priceText?: string;
   onPhoto?: boolean;
 }) {
@@ -67,6 +104,11 @@ export function PriceLevel({
     );
   }
 
+  // OpenStreetMap rarely tags price. Four grey dollar signs would assert a
+  // band for a real restaurant on no evidence, so render nothing at all and
+  // let the row close up around it.
+  if (level === undefined) return null;
+
   return (
     <View style={styles.row} accessibilityLabel={`Price level ${level} of 4`}>
       {[1, 2, 3, 4].map((n) => (
@@ -81,7 +123,7 @@ export function PriceLevel({
 /** Only the opening state — callers should not need a full ranked Suggestion. */
 export type OpenBadgeState = Pick<
   Suggestion,
-  'isOpen' | 'closingInMinutes' | 'opensInMinutes'
+  'isOpen' | 'closingInMinutes' | 'opensInMinutes' | 'hoursUnknown'
 >;
 
 /**
@@ -90,7 +132,30 @@ export type OpenBadgeState = Pick<
  */
 export function OpenBadge({ suggestion, onPhoto }: { suggestion: OpenBadgeState; onPhoto?: boolean }) {
   const { c } = useTheme();
-  const { isOpen, closingInMinutes, opensInMinutes } = suggestion;
+  const { isOpen, closingInMinutes, opensInMinutes, hoursUnknown } = suggestion;
+
+  /**
+   * "Closed" would be a claim, not a reading. OpenStreetMap listings often have
+   * no `opening_hours` at all, and telling someone a place is shut when nobody
+   * recorded when it opens is the kind of wrong that sends them somewhere else
+   * for no reason. Hollow dot, muted tone, and the reason said out loud.
+   */
+  if (hoursUnknown) {
+    const unknownColor = onPhoto ? 'rgba(255,255,255,0.7)' : c.textFaint;
+    return (
+      <View style={styles.row} accessibilityLabel="Opening hours not published">
+        <View
+          style={[
+            styles.dot,
+            { borderWidth: 1.5, borderColor: unknownColor, backgroundColor: 'transparent' },
+          ]}
+        />
+        <Txt variant="smallStrong" color={unknownColor} style={{ marginLeft: 6 }}>
+          Hours unknown
+        </Txt>
+      </View>
+    );
+  }
 
   const closingSoon = isOpen && closingInMinutes !== null && closingInMinutes <= 45;
   const tint = closingSoon ? c.caution : isOpen ? c.positive : c.textFaint;

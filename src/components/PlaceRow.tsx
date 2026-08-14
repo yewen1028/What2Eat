@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { ratingLabel } from '../lib/score';
 import { Suggestion } from '../lib/types';
 import { useTheme } from '../theme/theme';
 import { fonts, radius, space } from '../theme/tokens';
@@ -26,7 +27,7 @@ export function PlaceRow({ suggestion, rank, showDivider = true }: Props) {
   return (
     <Touchable
       accessibilityRole="button"
-      accessibilityLabel={`${rank ? `Number ${rank}. ` : ''}${place.name}, ${place.cuisine}, rated ${place.rating.toFixed(1)}, ${suggestion.walkMinutes} minute walk`}
+      accessibilityLabel={`${rank ? `Number ${rank}. ` : ''}${place.name}, ${place.cuisine}, ${ratingLabel(place.rating)}, ${suggestion.walkMinutes} minute walk`}
       accessibilityHint="Opens the full listing"
       onPress={() => router.push(`/place/${place.id}`)}
       scaleTo={0.99}

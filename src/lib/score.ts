@@ -27,6 +27,27 @@ export function bayesianRating(rating: number, reviewCount: number): number {
   return (v * rating + PRIOR_WEIGHT * PRIOR_RATING) / (v + PRIOR_WEIGHT);
 }
 
+/**
+ * Whether this place carries a real rating at all.
+ *
+ * OpenStreetMap publishes none, so its listings arrive as 0/0. That is "we do
+ * not know", not "nobody liked it", and the difference decides whether a real
+ * restaurant is shown a fabricated score, hidden by a rating filter, or ranked
+ * as though it were terrible.
+ */
+export function isRated(rating: number): boolean {
+  return rating > 0;
+}
+
+/**
+ * Screen-reader phrasing for a rating. Never says "rated 0.0", which is what
+ * `toFixed` produces for an unrated place and reads as a damning verdict on a
+ * real business.
+ */
+export function ratingLabel(rating: number): string {
+  return isRated(rating) ? `rated ${rating.toFixed(1)}` : 'no rating published';
+}
+
 function qualityScore(place: Place): number {
   // Map the useful band (3.5 → 5.0) onto 0 → 1; below 3.5 barely registers.
   const adjusted = bayesianRating(place.rating, place.reviewCount);
@@ -90,12 +111,20 @@ export function buildSuggestion(
     timing = runway >= walk + 60 ? 1 : clamp01((runway - walk) / 60);
   }
 
-  const fitWeight = scoreTiming ? WEIGHTS.fit : WEIGHTS.fit + WEIGHTS.timing;
+  /**
+   * A place whose hours nobody has recorded cannot be scored on them. Leaving
+   * it at timing 0 would rank every untagged OpenStreetMap listing below
+   * anything with hours, on the strength of a fact we do not have. The weight
+   * moves to meal fit, exactly as it does when browsing another sitting.
+   */
+  const timingKnown = scoreTiming && !place.hoursUnknown;
+
+  const fitWeight = timingKnown ? WEIGHTS.fit : WEIGHTS.fit + WEIGHTS.timing;
   const score =
     WEIGHTS.quality * quality +
     WEIGHTS.proximity * proximity +
     fitWeight * fit +
-    (scoreTiming ? WEIGHTS.timing * timing : 0);
+    (timingKnown ? WEIGHTS.timing * timing : 0);
 
   const adjusted = bayesianRating(place.rating, place.reviewCount);
   // "supper", not the internal key "late".
@@ -106,25 +135,28 @@ export function buildSuggestion(
     distance,
     walkMinutes: walk,
     isOpen: open.isOpen,
+    hoursUnknown: place.hoursUnknown ?? false,
     closingInMinutes: open.closingInMinutes,
     opensInMinutes: open.opensInMinutes,
     score,
     breakdown: {
       quality: {
         value: quality,
+        weight: WEIGHTS.quality,
         weighted: WEIGHTS.quality * quality,
-        detail:
-          place.reviewCount > 0
-            ? `${place.rating.toFixed(1)} from ${formatCount(place.reviewCount)} reviews, weighted to ${adjusted.toFixed(2)}`
-            : 'No ratings yet',
+        detail: isRated(place.rating)
+          ? `${place.rating.toFixed(1)} from ${formatCount(place.reviewCount)} reviews, weighted to ${adjusted.toFixed(2)}`
+          : 'No rating published, so this scores as an average place',
       },
       proximity: {
         value: proximity,
+        weight: WEIGHTS.proximity,
         weighted: WEIGHTS.proximity * proximity,
         detail: `${formatDistance(distance)} from you · about ${walk} min on foot`,
       },
       fit: {
         value: fit,
+        weight: fitWeight,
         weighted: fitWeight * fit,
         detail:
           fit === 1
@@ -134,9 +166,12 @@ export function buildSuggestion(
               : `Does not usually serve ${periodLabel}`,
       },
       timing: {
-        value: scoreTiming ? timing : 0,
-        weighted: scoreTiming ? WEIGHTS.timing * timing : 0,
-        detail: !scoreTiming
+        value: timingKnown ? timing : 0,
+        weight: timingKnown ? WEIGHTS.timing : 0,
+        weighted: timingKnown ? WEIGHTS.timing * timing : 0,
+        detail: place.hoursUnknown
+          ? 'Not scored, because nobody has published this place’s opening hours'
+          : !scoreTiming
           ? `Not scored, because you are browsing ${periodLabel} rather than now`
           : open.isOpen
           ? open.closingInMinutes !== null && open.closingInMinutes < walk + 60
@@ -180,11 +215,21 @@ export function formatCount(n: number): string {
   return String(n);
 }
 
+/**
+ * Hard gate applied before the sort.
+ *
+ * Unknown is not the same as failing. A place with no published hours, no
+ * rating or no price band is excluded by *none* of those filters, because the
+ * user asked to rule out places that are known to be shut, poorly rated or too
+ * expensive — not every place the map is quiet about. Treating unknown as a
+ * failure emptied the whole list on OpenStreetMap data, where most listings
+ * lack all three.
+ */
 export function passesFilters(s: Suggestion, f: Filters): boolean {
-  if (f.openOnly && !s.isOpen) return false;
+  if (f.openOnly && !s.isOpen && !s.place.hoursUnknown) return false;
   if (s.walkMinutes > f.maxWalkMinutes) return false;
-  if (s.place.rating < f.minRating) return false;
-  if (!f.priceLevels.includes(s.place.priceLevel)) return false;
+  if (isRated(s.place.rating) && s.place.rating < f.minRating) return false;
+  if (s.place.priceLevel !== undefined && !f.priceLevels.includes(s.place.priceLevel)) return false;
   if (f.vegetarianOnly && !s.place.vegetarianFriendly) return false;
   return true;
 }

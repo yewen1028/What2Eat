@@ -11,11 +11,12 @@ import React, {
 
 import { distanceMetres } from '../lib/geo';
 import { isRoutable, openDirections } from '../lib/maps';
-import { loadPlaces, PlacesSource } from '../lib/places';
+import { isRealSource, loadPlaces, PlacesSource } from '../lib/places';
 import { rank } from '../lib/score';
 import { mealMomentFor, MealMoment } from '../lib/time';
 import { Coords, Filters, Place, Suggestion } from '../lib/types';
 import { filtersFromProfile, useProfile } from './profile';
+import { useSaved } from './saved';
 
 export type LocationStatus = 'idle' | 'asking' | 'ready' | 'denied' | 'error';
 
@@ -32,7 +33,11 @@ interface NearbyValue {
   areaName: string | null;
   usingDemoLocation: boolean;
   source: PlacesSource;
-  /** True when the listings are real Google Places results. */
+  /**
+   * True when the listings are real businesses — Google *or* OpenStreetMap.
+   * This gates the SAMPLE badge and directions, so it asks "are these places
+   * real", not "which provider". For provider-specific UI, read `source`.
+   */
   isLiveData: boolean;
   warning: string | null;
   loading: boolean;
@@ -302,7 +307,7 @@ export function NearbyProvider({ children }: { children: React.ReactNode }) {
       areaName,
       usingDemoLocation,
       source,
-      isLiveData: source === 'google',
+      isLiveData: isRealSource(source),
       warning,
       loading,
       refreshing,
@@ -419,14 +424,24 @@ export function useDirections(): DirectionsController {
   };
 }
 
-/** Looks a place up across whatever is currently loaded. */
+/**
+ * Looks a place up across everything the app is holding.
+ *
+ * Bookmarks are the reason this checks more than the nearby results. A saved
+ * place is a full `Place` on disk, but it is only in `places` if it happens to
+ * be within range of the current fix — so opening one saved in another
+ * neighbourhood, or in an earlier session, hit "Place not found" on the tab
+ * whose entire purpose is to keep it. The saved copy is the fallback.
+ */
 export function usePlace(id: string | undefined) {
   const { suggestions, places, origin, now } = useNearby();
+  const { items: saved } = useSaved();
+
   return useMemo(() => {
     if (!id || !origin) return null;
     const existing = suggestions.find((s) => s.place.id === id);
     if (existing) return existing;
-    const place = places.find((p) => p.id === id);
+    const place = places.find((p) => p.id === id) ?? saved.find((p) => p.id === id);
     if (!place) return null;
     // Filtered out of the current list, but still worth showing on its own page.
     return rank([place], origin, now, {
@@ -436,5 +451,5 @@ export function usePlace(id: string | undefined) {
       priceLevels: [1, 2, 3, 4],
       vegetarianOnly: false,
     })[0];
-  }, [id, suggestions, places, origin, now]);
+  }, [id, suggestions, places, saved, origin, now]);
 }

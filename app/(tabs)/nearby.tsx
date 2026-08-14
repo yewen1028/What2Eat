@@ -175,9 +175,13 @@ export default function NearbyScreen() {
             />
           )}
           ListHeaderComponent={
-            !isLiveData && warning ? (
+            /* Gating this on !isLiveData swallowed the message it exists for:
+               when a Places key fails, the app drops to OpenStreetMap, which
+               *is* live data, so "Google listings unavailable" never showed.
+               Caution tone is for fiction; a real fallback is just news. */
+            warning ? (
               <View style={{ paddingTop: space.lg }}>
-                <Notice text={warning} tone="caution" />
+                <Notice text={warning} tone={isLiveData ? 'neutral' : 'caution'} />
               </View>
             ) : null
           }

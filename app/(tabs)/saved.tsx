@@ -13,7 +13,7 @@ import { RowSkeleton } from '../../src/components/Skeleton';
 import { Touchable } from '../../src/components/Touchable';
 import { Txt } from '../../src/components/Txt';
 import { isSamplePlace } from '../../src/lib/providers/sample';
-import { buildSuggestion } from '../../src/lib/score';
+import { buildSuggestion, ratingLabel } from '../../src/lib/score';
 import { openStateFor } from '../../src/lib/time';
 import { Place } from '../../src/lib/types';
 import { useNearby } from '../../src/state/nearby';
@@ -123,7 +123,7 @@ function SavedRowWithoutLocation({
   return (
     <Touchable
       accessibilityRole="button"
-      accessibilityLabel={`${place.name}, ${place.cuisine}, rated ${place.rating.toFixed(1)}`}
+      accessibilityLabel={`${place.name}, ${place.cuisine}, ${ratingLabel(place.rating)}`}
       onPress={() => router.push(`/place/${place.id}`)}
       scaleTo={0.99}
       style={[
@@ -137,7 +137,8 @@ function SavedRowWithoutLocation({
           {place.name}
         </Txt>
         <Txt variant="small" tone="muted" numberOfLines={1} style={{ marginTop: 2 }}>
-          {place.cuisine} · {place.address}
+          {/* An untagged address would leave "Cafe · " trailing a separator. */}
+          {place.address ? `${place.cuisine} · ${place.address}` : place.cuisine}
         </Txt>
         <View style={styles.metaRow}>
           <Rating rating={place.rating} reviewCount={place.reviewCount} compact />
@@ -145,7 +146,7 @@ function SavedRowWithoutLocation({
           <PriceLevel level={place.priceLevel} priceText={place.priceText} />
         </View>
         <View style={{ marginTop: 6 }}>
-          <OpenBadge suggestion={open} />
+          <OpenBadge suggestion={{ ...open, hoursUnknown: place.hoursUnknown ?? false }} />
         </View>
       </View>
       <SaveButton place={place} />

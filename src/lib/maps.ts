@@ -1,5 +1,6 @@
 import { Linking, Platform } from 'react-native';
 
+import { isOsmPlace } from './providers/osm';
 import { isSamplePlace } from './providers/sample';
 import { Coords, Place } from './types';
 
@@ -19,9 +20,15 @@ export function isRoutable(place: Place): boolean {
   return !isSamplePlace(place);
 }
 
-/** Google Places (New) ids are place ids; the sample provider's are not. */
+/**
+ * Only Google Places (New) ids are Google place ids.
+ *
+ * OpenStreetMap listings are real and route perfectly well by coordinate, but
+ * their ids mean nothing to Google — passing one as `destination_place_id`
+ * makes Maps reject the whole link rather than ignore the parameter.
+ */
 function googlePlaceId(place: Place): string | undefined {
-  return isRoutable(place) ? place.id : undefined;
+  return isRoutable(place) && !isOsmPlace(place) ? place.id : undefined;
 }
 
 const coord = (c: Coords) => `${c.lat},${c.lng}`;
@@ -52,6 +59,32 @@ export function directionsUrl(place: Place, origin?: Coords | null): string {
   if (origin) params.set('origin', coord(origin));
 
   return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
+
+/**
+ * The place's own Google Maps page, rather than a route to it.
+ *
+ * What the embedded map on the detail page opens when tapped: the embed is
+ * deliberately non-interactive, so this is how a user gets to pan, read reviews
+ * or check the street view. Routing is a separate, more committal action and
+ * keeps its own button.
+ */
+export function placeUrl(place: Place): string | null {
+  if (!isRoutable(place)) return null;
+
+  const params = new URLSearchParams({ api: '1', query: coord(place.coords) });
+  const placeId = googlePlaceId(place);
+  if (placeId) params.set('query_place_id', placeId);
+
+  return `https://www.google.com/maps/search/?${params.toString()}`;
+}
+
+/** Opens the place's Google Maps page. Returns false when it is not a real one. */
+export function openPlace(place: Place): boolean {
+  const url = placeUrl(place);
+  if (!url) return false;
+  Linking.openURL(url).catch(() => {});
+  return true;
 }
 
 /**

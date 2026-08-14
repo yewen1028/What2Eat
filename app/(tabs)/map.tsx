@@ -70,6 +70,7 @@ export default function MapScreen() {
         distance: s.distance,
         highlight: i < 3,
         isOpen: s.isOpen,
+        hoursUnknown: s.hoursUnknown,
       })),
     [suggestions],
   );

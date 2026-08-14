@@ -3,8 +3,9 @@ import { Coords, MealPeriod, Place, WeeklyHours } from '../types';
 /**
  * Google Places API (New) provider.
  *
- * Optional: the app runs on the sample dataset until a key is supplied. Put one
- * in `app.json` under `expo.extra.googlePlacesApiKey`, or set
+ * Optional: without a key the app falls back to OpenStreetMap (`providers/osm.ts`),
+ * which has the names but none of the ratings, prices or photos. Put one in
+ * `app.json` under `expo.extra.googlePlacesApiKey`, or set
  * `EXPO_PUBLIC_GOOGLE_PLACES_API_KEY`. Restrict the key to the Places API and
  * to your bundle identifiers before shipping.
  */
@@ -180,7 +181,11 @@ function toPlace(g: GooglePlace, apiKey: string): Place | null {
     tags: (g.types ?? []).filter((t) => t !== 'restaurant' && t !== 'food').slice(0, 3).map(humanTag),
     rating: g.rating ?? 0,
     reviewCount: g.userRatingCount ?? 0,
-    priceLevel: (g.priceLevel && PRICE_MAP[g.priceLevel]) || 2,
+    // Undefined, never a default band. Google leaves `priceLevel` off plenty of
+    // operational places, and falling back to 2 printed "$$" against a real
+    // restaurant on no evidence — and, worse, let the price filter exclude it
+    // on that invented band. Unknown has to stay unknown here too.
+    priceLevel: g.priceLevel ? PRICE_MAP[g.priceLevel] : undefined,
     priceText: toPriceText(g.priceRange),
     coords: { lat: g.location.latitude, lng: g.location.longitude },
     address: g.shortFormattedAddress ?? g.formattedAddress ?? '',
@@ -188,6 +193,9 @@ function toPlace(g: GooglePlace, apiKey: string): Place | null {
       ? `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=1000&key=${apiKey}`
       : undefined,
     hours: toWeeklyHours(g),
+    // Google publishes no hours for some operational places. Seven empty days
+    // are indistinguishable from "shut all week" unless we say which it is.
+    hoursUnknown: (g.regularOpeningHours?.periods?.length ?? 0) === 0,
     utcOffsetMinutes: g.utcOffsetMinutes,
     mealPeriods: toMealPeriods(g.types ?? []),
     vegetarianFriendly: g.servesVegetarianFood ?? undefined,

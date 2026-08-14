@@ -44,6 +44,7 @@ export default function NowScreen() {
     status,
     usingDemoLocation,
     isLiveData,
+    source,
     warning,
     loading,
     refreshing,
@@ -190,6 +191,28 @@ export default function NowScreen() {
                 />
                 <Button
                   label="Use real Google listings"
+                  variant="secondary"
+                  iconName="key-outline"
+                  onPress={() => router.push('/profile')}
+                  style={{ marginTop: space.md }}
+                />
+              </View>
+            ) : null}
+
+            {/* OSM listings are real places, so they get no SAMPLE badge and no
+                caution tone. What they do need is the reason every card says
+                "No rating" — otherwise that reads as a broken app rather than
+                as the honest limit of a keyless source. */}
+            {source === 'osm' ? (
+              <View style={{ marginTop: space.md }}>
+                <Notice
+                  text={
+                    warning ??
+                    'These are real restaurants from OpenStreetMap, ranked by distance and how well they suit this hour. It publishes no ratings, so ranking leans on the rest. Add a Google Places key for ratings and reviews.'
+                  }
+                />
+                <Button
+                  label="Add a Places key for ratings"
                   variant="secondary"
                   iconName="key-outline"
                   onPress={() => router.push('/profile')}

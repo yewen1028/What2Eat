@@ -12,11 +12,11 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { formatDistance } from '../lib/geo';
-import { headlineReason } from '../lib/score';
+import { headlineReason, ratingLabel } from '../lib/score';
 import { Suggestion } from '../lib/types';
 import { useTheme } from '../theme/theme';
 import { icon, motion, radius, space } from '../theme/tokens';
-import { OpenBadge, PriceLevel, Rating } from './Badges';
+import { hasPriceInfo, OpenBadge, PriceLevel, Rating } from './Badges';
 import { PlaceImage } from './PlaceImage';
 import { SaveButton } from './SaveButton';
 import { Touchable } from './Touchable';
@@ -57,7 +57,7 @@ export function HeroPick({ suggestion, scrollY, generation }: Props) {
     >
       <Touchable
         accessibilityRole="button"
-        accessibilityLabel={`${place.name}, ${place.cuisine}, rated ${place.rating.toFixed(1)}, ${suggestion.walkMinutes} minute walk`}
+        accessibilityLabel={`${place.name}, ${place.cuisine}, ${ratingLabel(place.rating)}, ${suggestion.walkMinutes} minute walk`}
         accessibilityHint="Opens the full listing"
         haptic="medium"
         onPress={() => router.push(`/place/${place.id}`)}
@@ -107,8 +107,12 @@ export function HeroPick({ suggestion, scrollY, generation }: Props) {
             <Txt variant="smallStrong" color="rgba(255,255,255,0.86)">
               {suggestion.walkMinutes} min walk
             </Txt>
-            <Dot />
-            <PriceLevel level={place.priceLevel} priceText={place.priceText} onPhoto />
+            {hasPriceInfo(place) ? (
+              <>
+                <Dot />
+                <PriceLevel level={place.priceLevel} priceText={place.priceText} onPhoto />
+              </>
+            ) : null}
           </View>
 
           <View style={styles.footerRow}>

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
 
 import { formatDistance } from '../../lib/geo';
+import { ratingLabel } from '../../lib/score';
 import { useTheme } from '../../theme/theme';
 import { radius, space } from '../../theme/tokens';
 import { Touchable } from '../Touchable';
@@ -170,7 +171,7 @@ export function SchematicMap({ origin, markers, selectedId, onSelect, radiusMetr
               <Touchable
                 key={p.marker.id}
                 accessibilityRole="button"
-                accessibilityLabel={`${p.marker.label}, rated ${p.marker.rating.toFixed(1)}, ${formatDistance(p.marker.distance)} away`}
+                accessibilityLabel={`${p.marker.label}, ${ratingLabel(p.marker.rating)}, ${formatDistance(p.marker.distance)} away`}
                 accessibilityState={{ selected }}
                 haptic="selection"
                 scaleTo={0.94}
@@ -183,7 +184,10 @@ export function SchematicMap({ origin, markers, selectedId, onSelect, radiusMetr
                   {
                     top: p.labelY,
                     zIndex: selected ? 3 : p.marker.highlight ? 2 : 1,
-                    opacity: p.marker.isOpen || selected ? 1 : 0.62,
+                    // Dimming says "shut right now". A place whose hours nobody
+                  // recorded is not known to be shut, so it stays at full
+                  // strength rather than being greyed out on no evidence.
+                  opacity: p.marker.isOpen || p.marker.hoursUnknown || selected ? 1 : 0.62,
                     backgroundColor: accent ? c.accent : c.surface,
                     borderColor: selected ? c.text : accent ? c.accent : c.border,
                     borderWidth: selected ? 2 : StyleSheet.hairlineWidth,

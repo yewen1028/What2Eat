@@ -27,9 +27,42 @@ Then press `i` / `a`, or scan the QR code with Expo Go.
 The app runs with **no API key**, but read the next section before you trust
 what it shows you.
 
-## Real restaurants vs. sample data
+## Where the restaurants come from
 
-**Without a Places key the restaurants are fictional.** The built-in dataset is
+Three sources, tried best-first in `src/lib/places.ts`:
+
+| Source | Needs | Gives | Missing |
+|---|---|---|---|
+| **Google Places (New)** | an API key | names, ratings, reviews, hours, prices, photos | — |
+| **OpenStreetMap** (Overpass) | nothing | real names, real coordinates, some hours | ratings, prices, photos |
+| **Sample** | nothing | a fictional neighbourhood, clearly badged | it isn't real |
+
+With no key the app runs on **OpenStreetMap**, so every listing is a business
+you can verify on any map. The fictional sample set is now only a last resort
+for when both networks fail — it used to be the keyless default, which was the
+app's worst behaviour: plausible-looking restaurants, at believable distances,
+that were not places.
+
+OSM's gap is the other half of the product. It publishes **no ratings**, so
+quality — normally 46% of the rank — falls back to a neutral prior and the sort
+leans on distance and meal fit. Those fields are left empty rather than guessed:
+a real restaurant shown an invented 4.3 is a worse lie than an obviously fake
+dataset, because the name lends it credibility. Cards say "No rating", price is
+omitted entirely, and places with no `opening_hours` say "Hours unknown" instead
+of "Closed".
+
+That last distinction is load-bearing. Only 14 of 80 places around Bukit Bintang
+have hours mapped, so treating "unknown" as "closed" — with the default
+`open now` filter on — would have hidden almost everything. `passesFilters`
+excludes a place only on facts it actually has.
+
+Overpass is a free, shared, volunteer-run service. The provider asks for at most
+80 places, uses GET (POST is what proxies drop), and falls through to a second
+mirror when the first is rate-limiting.
+
+## Sample data
+
+**When both live sources fail the restaurants are fictional.** The built-in dataset is
 a hand-written Malaysian neighbourhood — invented names, invented ratings,
 invented hours — laid out around your real position so that distance,
 opening-hours and ranking logic all exercise real code paths. It is never
@@ -62,13 +95,15 @@ of dollar signs.
 EXPO_PUBLIC_GOOGLE_PLACES_API_KEY=YOUR_KEY
 ```
 
-If a live request fails or returns nothing in range, the app falls back to the
-sample data, re-shows the badge, and surfaces the actual error rather than
+If a Google request fails or returns nothing in range, the app drops to
+OpenStreetMap and says why; only if that also fails does it show the sample
+neighbourhood, re-badged and with the actual error surfaced, rather than
 quietly serving invented places as real ones.
 
 To add another provider (Foursquare, Yelp, your own backend), write a function
 that returns `Place[]` and wire it into `src/lib/places.ts` — that file is the
-only place the rest of the app talks to.
+only place the rest of the app talks to. Leave unknown fields undefined; the
+ranker and the UI already handle absent ratings, prices and hours.
 
 ## Google Maps keys
 
@@ -79,8 +114,33 @@ them:
 |---|---|---|---|
 | Maps SDK | at **build** time | Maps SDK for iOS + Android | `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` |
 | Places | at **runtime** | Places API (New) | env var *or* the in-app field |
+| Embed | at **runtime** | Maps Embed API | falls back to whichever of the above is set |
 
-One key can serve both if you enable all three APIs on it.
+One key can serve all of them if you enable every API on it. Copy `.env.example`
+to `.env` to set the build-time ones.
+
+## The embedded map on a place page
+
+Each detail page carries a real Google map of that one restaurant, via the
+**Maps Embed API** — an iframe on web (`EmbedMap.web.tsx`), a WebView on native
+(`EmbedMap.tsx`), split by Metro platform resolution so the WebView dependency
+never reaches the web bundle. Embedding is free and uncapped, and it works in
+Expo Go on iOS, where the native Maps SDK cannot render at all.
+
+Two things it deliberately does **not** do. It carries no data — the Embed API
+returns a picture, so ranking still depends entirely on the Places key. And it
+is **inert**: it sits inside a vertical ScrollView, where a pannable map
+swallows the scroll gesture as soon as a drag starts over it. Tapping the card
+opens the place in the Google Maps app, which is where panning belongs.
+
+`placeEmbedUrl()` in `src/lib/embed.ts` returns `null` for sample places and the
+card renders nothing. Real tiles under an invented business name would label a
+real car park "Kopitiam Sri Muda" — worse than the schematic map, which at least
+reads as abstract.
+
+> If the map area renders a Google error page, the key is reaching Google but
+> **Maps Embed API** is not enabled on it. That is a separate checkbox from
+> Places API (New) in the Cloud Console library.
 
 ```
 EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=YOUR_KEY npx expo start

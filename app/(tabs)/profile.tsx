@@ -11,6 +11,7 @@ import { Notice, SCREEN_PADDING, SectionHeader } from '../../src/components/Layo
 import { Toggle } from '../../src/components/Toggle';
 import { Touchable } from '../../src/components/Touchable';
 import { Txt } from '../../src/components/Txt';
+import { PlacesSource } from '../../src/lib/places';
 import { formatFixAge } from '../../src/lib/time';
 import { DEMO_AREA_NAME, useNearby } from '../../src/state/nearby';
 import { initialsFor, useProfile } from '../../src/state/profile';
@@ -27,6 +28,12 @@ const PRICE_OPTIONS: { level: number; label: string; hint: string }[] = [
   { level: 4, label: '$$$$', hint: 'Very expensive' },
 ];
 
+const LISTING_SOURCE_LABELS: Record<PlacesSource, string> = {
+  google: 'Google Places (real)',
+  osm: 'OpenStreetMap (real, unrated)',
+  sample: 'Sample data (not real)',
+};
+
 export default function ProfileScreen() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
@@ -40,7 +47,7 @@ export default function ProfileScreen() {
     fixedAt,
     now,
     usingDemoLocation,
-    isLiveData,
+    source,
     places,
     suggestions,
     filtersChanged,
@@ -200,10 +207,13 @@ export default function ProfileScreen() {
                   : 'Unknown'
           }
         />
+        {/* Three sources, so this cannot be a real/not-real binary. Naming the
+            source is the point: "OpenStreetMap" is what explains why every card
+            says "No rating". */}
         <InfoRow
           iconName="server-outline"
           label="Listings"
-          value={isLiveData ? 'Google Places (real)' : 'Sample data (not real)'}
+          value={LISTING_SOURCE_LABELS[source]}
         />
         <PlacesKeyField />
         <View style={[styles.chipWrap, { marginTop: space.lg }]}>
@@ -319,14 +329,18 @@ function Identity() {
 }
 
 /**
- * Real restaurant names can only come from Google — the app will not invent
- * them. Accepting the key here means a user can switch to real listings without
- * rebuilding the app.
+ * Ratings, reviews and prices can only come from Google; OpenStreetMap covers
+ * the names and coordinates for free. Accepting the key here means a user can
+ * upgrade the data without rebuilding the app.
+ *
+ * Everything below keys off `source === 'google'` rather than `isLiveData`,
+ * which is now true for OSM as well: a key that fails silently falls through to
+ * OSM, and the user would see real listings and no hint that their key is bad.
  */
 function PlacesKeyField() {
   const { c } = useTheme();
   const { profile, update } = useProfile();
-  const { isLiveData, warning, refreshing } = useNearby();
+  const { source, warning, refreshing } = useNearby();
 
   const [draft, setDraft] = useState(profile.placesApiKey);
   const [revealed, setRevealed] = useState(false);
@@ -341,9 +355,10 @@ function PlacesKeyField() {
     <View style={{ marginTop: space.lg }}>
       <Txt variant="smallStrong">Google Places API key</Txt>
       <Txt variant="small" tone="muted" style={{ marginTop: 2 }}>
-        Enable “Places API (New)” in Google Cloud, then paste the key here to
-        replace the sample data with real restaurants around you. It is kept on this device and
-        only ever sent to Google.
+        Without a key the app uses OpenStreetMap: real restaurants, but no
+        ratings, prices or photos. Enable “Places API (New)” in Google Cloud and
+        paste the key here to add them. It is kept on this device and only ever
+        sent to Google.
       </Txt>
 
       <View style={styles.keyRow}>
@@ -397,16 +412,16 @@ function PlacesKeyField() {
         ) : null}
       </View>
 
-      {hasKey && !isLiveData ? (
+      {hasKey && source !== 'google' ? (
         <View style={{ marginTop: space.md }}>
           <Notice
             tone="caution"
-            text={warning ?? 'That key did not return live results. Check that Places API (New) is enabled and the key is unrestricted for this app.'}
+            text={warning ?? 'That key did not return Google results, so the listings below it are coming from elsewhere. Check that Places API (New) is enabled and the key is unrestricted for this app.'}
           />
         </View>
       ) : null}
 
-      {isLiveData ? (
+      {source === 'google' ? (
         <View style={{ marginTop: space.md }}>
           <Chip label="Live Google listings" iconName="checkmark-circle-outline" tone="accent" />
         </View>

@@ -1,17 +1,21 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { SCORE_WEIGHTS } from '../lib/score';
 import { ScoreComponent, Suggestion } from '../lib/types';
 import { useTheme } from '../theme/theme';
 import { fonts, space } from '../theme/tokens';
 import { Txt } from './Txt';
 
-const ROWS: { key: keyof Suggestion['breakdown']; label: string; weight: number }[] = [
-  { key: 'quality', label: 'Rating quality', weight: SCORE_WEIGHTS.quality },
-  { key: 'proximity', label: 'Distance from you', weight: SCORE_WEIGHTS.proximity },
-  { key: 'fit', label: 'Right for this hour', weight: SCORE_WEIGHTS.fit },
-  { key: 'timing', label: 'Still open', weight: SCORE_WEIGHTS.timing },
+/**
+ * Weights are read off each component, not from `SCORE_WEIGHTS`. The two differ
+ * whenever timing could not be scored — unknown hours, or browsing another
+ * sitting — and the constant would then describe a sort that never happened.
+ */
+const ROWS: { key: keyof Suggestion['breakdown']; label: string }[] = [
+  { key: 'quality', label: 'Rating quality' },
+  { key: 'proximity', label: 'Distance from you' },
+  { key: 'fit', label: 'Right for this hour' },
+  { key: 'timing', label: 'Still open' },
 ];
 
 /**
@@ -50,11 +54,10 @@ export function ScoreBreakdown({ suggestion }: { suggestion: Suggestion }) {
 
       <View style={[styles.rule, { backgroundColor: c.text }]} />
 
-      {ROWS.map(({ key, label, weight }, i) => (
+      {ROWS.map(({ key, label }, i) => (
         <Row
           key={key}
           label={label}
-          weight={weight}
           component={suggestion.breakdown[key]}
           last={i === ROWS.length - 1}
         />
@@ -65,17 +68,16 @@ export function ScoreBreakdown({ suggestion }: { suggestion: Suggestion }) {
 
 function Row({
   label,
-  weight,
   component,
   last,
 }: {
   label: string;
-  weight: number;
   component: ScoreComponent;
   last: boolean;
 }) {
   const { c } = useTheme();
   const pct = Math.round(component.value * 100);
+  const weight = component.weight;
 
   return (
     <View
