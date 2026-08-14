@@ -56,9 +56,35 @@ have hours mapped, so treating "unknown" as "closed" — with the default
 `open now` filter on — would have hidden almost everything. `passesFilters`
 excludes a place only on facts it actually has.
 
-Overpass is a free, shared, volunteer-run service. The provider asks for at most
-80 places, uses GET (POST is what proxies drop), and falls through to a second
-mirror when the first is rate-limiting.
+## Are these the *nearest* restaurants?
+
+Yes, and getting that right takes work on the OpenStreetMap path, because
+Overpass cannot sort by distance or return "the nearest 80" — it answers in its
+own internal order. So the provider asks a tight 500 m ring first, widens to the
+full 2.5 km only if that ring is quiet, then sorts by distance itself and keeps
+the closest 80. Google's path already did the equivalent, running a DISTANCE
+pass alongside the POPULARITY one.
+
+Getting this wrong is unusually hard to notice, which is worth spelling out. In
+Bukit Bintang there are 1613 mapped restaurants within 2.5 km. Taking the first
+80 the server happened to send back produced a list whose median distance was
+1 km, which held only 4 of the 80 genuinely nearest places, and which omitted
+the closest restaurant of all, 24 m away. Every distance and walk time on screen
+was calculated correctly. They were simply attached to the wrong restaurants.
+
+A note on the coordinates themselves: OpenStreetMap is surveyed independently of
+Google, so a pin can sit a few metres from where Google puts the same shop. The
+provider takes the best position OSM offers — where a business is mapped both as
+a point and as a building outline, the surveyed point wins over the centre of
+the building's bounding box, and the duplicate is merged away. With a Places key
+the coordinates are Google's own, and deep links carry the `place_id`, so the
+handoff resolves to exactly the business you tapped.
+
+Overpass is a free, shared, volunteer-run service. The provider uses GET (POST is
+what proxies drop), identifies itself with a `User-Agent` (Overpass answers
+anonymous requests with a bare 406), falls through to a second mirror when the
+first is rate-limiting, and treats a non-JSON body under a 200 as the "busy"
+response it actually is rather than surfacing a parser error.
 
 ## Sample data
 

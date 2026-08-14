@@ -78,6 +78,19 @@ survives `openOnly`. Treating unknown as failure emptied the entire list on OSM
 data, where most listings lack all three. Same in `buildSuggestion`: unknown
 hours move the timing weight to meal fit rather than scoring zero.
 
+**1c. A provider must return the *nearest* places, not just some places.**
+Both providers cap what they return, so the cap decides which restaurants the
+app is even capable of suggesting. Neither may leave that choice to the server's
+own ordering. `providers/google.ts` runs a DISTANCE pass alongside POPULARITY;
+`providers/osm.ts` asks a tight ring first and sorts by distance before slicing,
+because Overpass cannot sort and emits elements in internal id order. Cutting
+its full-radius response at 80 kept 80 arbitrary restaurants — median distance
+1 km, only 4 of the 80 genuinely nearest, and the closest restaurant of all
+(24 m) missing. Distances were all correct; they were attached to the wrong
+restaurants, which is the harder bug to see. Do not reintroduce a server-side
+`out ... N` as a selection mechanism: it is a runaway guard only, and a tight
+one also starves `way` results, since Overpass emits every node first.
+
 **2. Google Maps only, never Apple Maps.**
 `PROVIDER_GOOGLE` on both platforms; directions deep-link to Google Maps.
 `src/components/map/capability.ts` decides whether Google Maps can render —
