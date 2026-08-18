@@ -5,7 +5,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { Easing, FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { OpenBadge, PriceLevel, Rating } from '../../src/components/Badges';
+import { hasPriceInfo, OpenBadge, PriceLevel, Rating } from '../../src/components/Badges';
 import { Button } from '../../src/components/Button';
 import { FilterChip } from '../../src/components/FilterChip';
 import { EmptyState, Notice, SampleDataBadge, SCREEN_PADDING } from '../../src/components/Layout';
@@ -16,7 +16,7 @@ import { PlaceImage } from '../../src/components/PlaceImage';
 import { SaveButton } from '../../src/components/SaveButton';
 import { Touchable } from '../../src/components/Touchable';
 import { Txt } from '../../src/components/Txt';
-import { formatDistance } from '../../src/lib/geo';
+import { formatDistance, walkRadiusMetres } from '../../src/lib/geo';
 import { rank } from '../../src/lib/score';
 import {
   MEAL_PERIOD_LABELS,
@@ -24,12 +24,15 @@ import {
   MEAL_PERIODS,
 } from '../../src/lib/time';
 import { MealPeriod } from '../../src/lib/types';
-import { useDirections, useNearby } from '../../src/state/nearby';
+import { SEARCH_RADIUS_M, useDirections, useNearby } from '../../src/state/nearby';
 import { useTheme } from '../../src/theme/theme';
 import { icon, motion, MIN_TAP, radius, space } from '../../src/theme/tokens';
 
-/** Viewport radius. A little wider than the walk filter so context survives. */
-const VIEW_RADIUS_M = 1400;
+/** Keeps the reach circle off the very edge of the frame. */
+const VIEWPORT_HEADROOM = 1.25;
+
+/** A viewport with no reach worth showing still needs a sensible scale. */
+const MIN_VIEW_RADIUS_M = 400;
 
 export default function MapScreen() {
   const { c } = useTheme();
@@ -80,6 +83,33 @@ export default function MapScreen() {
     [suggestions, selectedId],
   );
 
+  /**
+   * The walk filter is the real edge of the results, so it draws the circle.
+   * The old fixed 1400 m drew a boundary that pins outside it visibly
+   * disproved at 40 minutes.
+   *
+   * Capped at what was actually fetched — the widest filter reaches past the
+   * search radius, and a circle drawn out there promises coverage no provider
+   * was ever asked for.
+   */
+  const reachMetres = Math.min(walkRadiusMetres(filters.maxWalkMinutes), SEARCH_RADIUS_M);
+
+  /**
+   * The viewport frames the *results*, not the filter. On a dense block every
+   * match sits within 300 m, and framing the filter's full 1.6 km squeezed all
+   * 78 of them into a knot at the centre of two kilometres of empty ground.
+   * Bounded by the reach, so a sparse area still shows the whole circle rather
+   * than zooming until one distant match fills the screen.
+   */
+  const farthest = useMemo(
+    () => suggestions.reduce((max, s) => Math.max(max, s.distance), 0),
+    [suggestions],
+  );
+  const viewRadiusMetres = Math.min(
+    reachMetres * VIEWPORT_HEADROOM,
+    Math.max(MIN_VIEW_RADIUS_M, farthest * VIEWPORT_HEADROOM),
+  );
+
   if (status !== 'ready' || !origin) {
     return (
       <View style={[styles.screen, { backgroundColor: c.bg, paddingTop: insets.top + space.xl }]}>
@@ -100,7 +130,8 @@ export default function MapScreen() {
         markers={markers}
         selectedId={selectedId}
         onSelect={setSelectedId}
-        radiusMetres={VIEW_RADIUS_M}
+        radiusMetres={viewRadiusMetres}
+        reachMetres={reachMetres}
         recenterKey={recenterKey}
       />
 
@@ -250,8 +281,15 @@ export default function MapScreen() {
               </Txt>
               <View style={styles.metaRow}>
                 <Rating rating={selected.place.rating} reviewCount={selected.place.reviewCount} compact />
-                <View style={{ width: space.md }} />
-                <PriceLevel level={selected.place.priceLevel} priceText={selected.place.priceText} />
+                {/* The gap belongs to the price, so it goes when the price does
+                    — otherwise every unpriced listing trails an unexplained
+                    hole in the row. */}
+                {hasPriceInfo(selected.place) ? (
+                  <>
+                    <View style={{ width: space.md }} />
+                    <PriceLevel level={selected.place.priceLevel} priceText={selected.place.priceText} />
+                  </>
+                ) : null}
               </View>
               <View style={{ marginTop: 6 }}>
                 <OpenBadge suggestion={selected} />

@@ -27,7 +27,8 @@ import { ScoreBreakdown } from '../../src/components/ScoreBreakdown';
 import { Touchable } from '../../src/components/Touchable';
 import { Txt } from '../../src/components/Txt';
 import { formatDistance } from '../../src/lib/geo';
-import { formatIntervals, WEEKDAY_LABELS } from '../../src/lib/time';
+import { isSamplePlace } from '../../src/lib/providers/sample';
+import { formatIntervals, placeLocalDate, WEEKDAY_LABELS } from '../../src/lib/time';
 import { useDirections, useNearby, usePlace } from '../../src/state/nearby';
 import { useTheme } from '../../src/theme/theme';
 import { icon, MIN_TAP, radius, space } from '../../src/theme/tokens';
@@ -39,7 +40,7 @@ export default function PlaceScreen() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { now, isLiveData } = useNearby();
+  const { now } = useNearby();
   const directions = useDirections();
   const suggestion = usePlace(id);
 
@@ -86,7 +87,11 @@ export default function PlaceScreen() {
 
   const { place } = suggestion;
   const noRoute = directions.blockedReason(place);
-  const today = now.getDay();
+  // The rows are the *place's* week, so which one is "today" has to be read off
+  // the place's own clock. `openStateFor` already does this; taking the day
+  // straight off the device highlighted the wrong row — and bolded the wrong
+  // hours as the ones in force — whenever the two disagreed.
+  const today = placeLocalDate(now, place.utcOffsetMinutes).getDay();
 
   return (
     <View style={[styles.screen, { backgroundColor: c.bg }]}>
@@ -115,7 +120,11 @@ export default function PlaceScreen() {
             <Txt variant="label" tone="faint" uppercase style={{ flexShrink: 1 }}>
               {place.cuisine}
             </Txt>
-            {!isLiveData ? <SampleDataBadge compact /> : null}
+            {/* The badge follows the *place*, not the session's current source.
+                A bookmark opened after a Places key went in is still fictional,
+                and a real saved listing opened while the current fetch has
+                fallen back to sample data is not. Same rule as `isRoutable`. */}
+            {isSamplePlace(place) ? <SampleDataBadge compact /> : null}
           </View>
           <Txt variant="title" style={{ marginTop: space.xs }} accessibilityRole="header">
             {place.name}

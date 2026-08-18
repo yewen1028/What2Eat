@@ -22,6 +22,18 @@ export function walkMinutes(metres: number): number {
   return Math.max(1, Math.round(metres / WALK_METRES_PER_MINUTE));
 }
 
+/**
+ * How far the walk filter actually reaches, in metres.
+ *
+ * The inverse of `walkMinutes`, so a circle drawn at this radius encloses
+ * exactly the places that filter admits. Anything that draws "how far we
+ * looked" has to derive it from the same constant the filter is applied with,
+ * or it is drawing a boundary the results do not respect.
+ */
+export function walkRadiusMetres(minutes: number): number {
+  return minutes * WALK_METRES_PER_MINUTE;
+}
+
 export function formatDistance(metres: number): string {
   if (metres < 1000) return `${Math.round(metres / 10) * 10} m`;
   return `${(metres / 1000).toFixed(1)} km`;

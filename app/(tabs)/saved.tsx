@@ -3,7 +3,7 @@ import React, { useMemo } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { OpenBadge, PriceLevel, Rating } from '../../src/components/Badges';
+import { hasPriceInfo, OpenBadge, PriceLevel, Rating } from '../../src/components/Badges';
 import { Button } from '../../src/components/Button';
 import { EmptyState, SampleDataBadge, SCREEN_PADDING } from '../../src/components/Layout';
 import { PlaceImage } from '../../src/components/PlaceImage';
@@ -142,8 +142,13 @@ function SavedRowWithoutLocation({
         </Txt>
         <View style={styles.metaRow}>
           <Rating rating={place.rating} reviewCount={place.reviewCount} compact />
-          <View style={{ width: space.md }} />
-          <PriceLevel level={place.priceLevel} priceText={place.priceText} />
+          {/* The gap belongs to the price, so it goes when the price does. */}
+          {hasPriceInfo(place) ? (
+            <>
+              <View style={{ width: space.md }} />
+              <PriceLevel level={place.priceLevel} priceText={place.priceText} />
+            </>
+          ) : null}
         </View>
         <View style={{ marginTop: 6 }}>
           <OpenBadge suggestion={{ ...open, hoursUnknown: place.hoursUnknown ?? false }} />

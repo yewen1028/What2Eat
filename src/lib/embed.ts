@@ -18,7 +18,16 @@ import { Place } from './types';
  * needs "Maps Embed API" enabled in Google Cloud Console alongside the others.
  */
 
-const EMBED_BASE = 'https://www.google.com/maps/embed/v1/place';
+/**
+ * Two modes, because the two id kinds resolve differently.
+ *
+ * `place` takes a `place_id:` and renders that exact business, labelled.
+ * `search` takes free text and labels whatever it finds inside the viewport —
+ * which is the only mode that can name an OpenStreetMap listing, since its id
+ * means nothing to Google.
+ */
+const EMBED_PLACE = 'https://www.google.com/maps/embed/v1/place';
+const EMBED_SEARCH = 'https://www.google.com/maps/embed/v1/search';
 
 /** Close enough to read the street the place is on, wide enough to orient. */
 const ZOOM = 17;
@@ -54,18 +63,32 @@ export function placeEmbedUrl(place: Place, runtimeKey?: string): string | null 
   const key = embedKey(runtimeKey);
   if (!key) return null;
 
+  const shared = { key, zoom: String(ZOOM), region: 'MY', language: 'en' };
+
+  // `place_id:` pins the pin to the actual business, so Google labels it with
+  // its own name and hours rather than dropping an anonymous marker.
+  if (!isOsmPlace(place)) {
+    const params = new URLSearchParams({ ...shared, q: `place_id:${place.id}` });
+    return `${EMBED_PLACE}?${params.toString()}`;
+  }
+
+  /**
+   * An OpenStreetMap id is not a Google place id, and sending its *coordinate*
+   * instead — which is what this used to do — renders a map whose only marker
+   * is an anonymous dropped pin. The card sat under a heading reading "Where it
+   * is" and named nothing, on the app's default keyless path.
+   *
+   * Search mode with a locked `center` fixes that without inventing anything:
+   * the viewport stays on the coordinate OSM is authoritative about, and Google
+   * labels the businesses *it* knows inside that frame. If it cannot match the
+   * name, the worst case is an unlabelled map of the right block — never a
+   * different restaurant presented as this one.
+   */
   const params = new URLSearchParams({
-    key,
-    // `place_id:` pins the pin to the actual business, so Google labels it with
-    // its own name and hours rather than dropping an anonymous marker on a
-    // coordinate. Only Google ids are place ids: an OpenStreetMap id sent this
-    // way resolves to nothing and the frame renders an error, so those fall
-    // back to the coordinate, which is the one thing OSM is authoritative on.
-    q: isOsmPlace(place) ? `${place.coords.lat},${place.coords.lng}` : `place_id:${place.id}`,
-    zoom: String(ZOOM),
-    region: 'MY',
-    language: 'en',
+    ...shared,
+    q: [place.name, place.address].filter(Boolean).join(', '),
+    center: `${place.coords.lat},${place.coords.lng}`,
   });
 
-  return `${EMBED_BASE}?${params.toString()}`;
+  return `${EMBED_SEARCH}?${params.toString()}`;
 }

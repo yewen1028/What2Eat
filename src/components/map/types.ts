@@ -34,6 +34,13 @@ export interface MapSurfaceProps {
   onSelect: (id: string | null) => void;
   /** Radius the initial viewport should comfortably contain, in metres. */
   radiusMetres: number;
+  /**
+   * How far the results actually reach, in metres — the walk filter, converted.
+   * Drawn as the "nothing further out is shown" circle, so it must come from
+   * the filter rather than from the viewport: a circle sized to the viewport
+   * drew a boundary the pins outside it visibly disproved.
+   */
+  reachMetres: number;
   /** Increment to re-centre on the user. */
   recenterKey: number;
 }

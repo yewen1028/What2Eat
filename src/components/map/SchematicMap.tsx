@@ -14,15 +14,49 @@ const M_PER_DEG_LAT = 111_320;
 const LABEL_PITCH = 24;
 const LABEL_GAP = 9;
 
-interface Placed {
+/**
+ * Vertical room kept clear of the outermost ring, for labels that slide down
+ * past it. Sized for a full-screen map; a short card overrides it, because
+ * subtracting 72px from a 200px frame left a 28px plot radius and stacked all
+ * three ring labels on top of each other.
+ */
+const LABEL_RESERVE_Y = 72;
+
+/** Breathing room between a label and the edge of the frame. */
+const EDGE_INSET = 4;
+
+/**
+ * How many names the view will draw at once.
+ *
+ * Every marker keeps its dot; only the labels are rationed. A dense city block
+ * returns 78 matches, and labelling all of them turned the de-collision into a
+ * single vertical column of names running off the bottom of the screen — each
+ * one displaced so far from its own dot that the map no longer answered "what
+ * is near me", which is its only job. The ranker hands markers over best-first,
+ * so the budget spends itself on the results the user is most likely to want.
+ */
+const LABEL_BUDGET = 12;
+
+/**
+ * Tap target around a dot. Deliberately under `MIN_TAP`: dots sit metres apart
+ * on a dense block, and 44pt squares would overlap so heavily that the nearest
+ * dot would be the only one reachable. The labels are the primary affordance
+ * and keep their own larger target; this is the fallback for the unlabelled.
+ */
+const DOT_TAP = 32;
+
+interface Point {
   marker: MapMarker;
   /** True position of the dot. */
   x: number;
   y: number;
+}
+
+interface Placed extends Point {
   /** Label's top edge, after collision resolution. */
   labelY: number;
-  /** Label sits to the left of the dot when the dot is near the right edge. */
-  flip: boolean;
+  /** Label's left edge, after flipping and clamping into the frame. */
+  left: number;
   width: number;
 }
 
@@ -36,7 +70,17 @@ interface Placed {
  * and how far — without pretending to be something it is not, and without
  * silently falling back to Apple Maps.
  */
-export function SchematicMap({ origin, markers, selectedId, onSelect, radiusMetres }: MapSurfaceProps) {
+export function SchematicMap({
+  origin,
+  markers,
+  selectedId,
+  onSelect,
+  radiusMetres,
+  labelReserve = LABEL_RESERVE_Y,
+}: MapSurfaceProps & {
+  /** Vertical room to keep clear of the outer ring. Lower it in short cards. */
+  labelReserve?: number;
+}) {
   const { c } = useTheme();
   const [size, setSize] = useState({ width: 0, height: 0 });
 
@@ -45,15 +89,16 @@ export function SchematicMap({ origin, markers, selectedId, onSelect, radiusMetr
     setSize({ width, height });
   };
 
-  const plotRadius = Math.max(0, Math.min(size.width / 2 - 16, size.height / 2 - 72));
+  const plotRadius = Math.max(0, Math.min(size.width / 2 - 16, size.height / 2 - labelReserve));
   const scale = plotRadius / radiusMetres;
   const cx = size.width / 2;
   const cy = size.height / 2;
 
-  const placed = useMemo<Placed[]>(() => {
+  /** Every marker's true position. Dots are drawn from this, labels are not. */
+  const points = useMemo<Point[]>(() => {
     if (size.width === 0) return [];
 
-    const points = markers.map((m) => {
+    return markers.map((m) => {
       const dy = (m.coords.lat - origin.lat) * M_PER_DEG_LAT;
       const dx =
         (m.coords.lng - origin.lng) * M_PER_DEG_LAT * Math.cos((origin.lat * Math.PI) / 180);
@@ -62,6 +107,21 @@ export function SchematicMap({ origin, markers, selectedId, onSelect, radiusMetr
       const clamp = dist > radiusMetres ? radiusMetres / dist : 1;
       return { marker: m, x: cx + dx * scale * clamp, y: cy - dy * scale * clamp };
     });
+  }, [markers, origin, cx, cy, scale, radiusMetres, size.width]);
+
+  const placed = useMemo<Placed[]>(() => {
+    if (points.length === 0) return [];
+
+    /**
+     * The budget goes to the best-ranked markers, and the selection always
+     * keeps its name whatever its rank — tapping a bare dot has to tell you
+     * what you tapped.
+     */
+    const labelled = points.slice(0, LABEL_BUDGET);
+    if (selectedId && !labelled.some((p) => p.marker.id === selectedId)) {
+      const chosen = points.find((p) => p.marker.id === selectedId);
+      if (chosen) labelled.push(chosen);
+    }
 
     // Greedy top-to-bottom de-collision: a label that would sit on top of one
     // already placed slides down. Dots stay at their true positions, so the
@@ -74,30 +134,44 @@ export function SchematicMap({ origin, markers, selectedId, onSelect, radiusMetr
         x: cx - 26 - LABEL_GAP,
         y: cy,
         labelY: cy + 14,
-        flip: false,
+        left: cx - 26,
         width: 52,
       },
     ];
-    for (const p of [...points].sort((a, b) => a.y - b.y)) {
-      const flip = p.x > size.width * 0.55;
+    for (const p of [...labelled].sort((a, b) => a.y - b.y)) {
       const width = Math.min(170, p.marker.label.length * 7.1 + 22);
-      const left = flip ? p.x - LABEL_GAP - width : p.x + LABEL_GAP;
+
+      /**
+       * Side first, then a hard clamp into the frame. The flip alone was not
+       * enough: a dot just left of the threshold still put a long name well
+       * past the right edge, and the container clips, so the name lost its
+       * last few characters. Clamping keeps the label whole — only the
+       * annotation moves, never the dot, so the geography stays true.
+       */
+      const flip = p.x > size.width * 0.55;
+      const preferred = flip ? p.x - LABEL_GAP - width : p.x + LABEL_GAP;
+      const left = Math.max(
+        EDGE_INSET,
+        Math.min(preferred, size.width - width - EDGE_INSET),
+      );
+
       let labelY = p.y - LABEL_PITCH / 2;
 
       for (let guard = 0; guard < 40; guard += 1) {
-        const clash = out.find((q) => {
-          const qLeft = q.flip ? q.x - LABEL_GAP - q.width : q.x + LABEL_GAP;
-          const overlapsX = left < qLeft + q.width && qLeft < left + width;
-          return overlapsX && Math.abs(labelY - q.labelY) < LABEL_PITCH;
-        });
+        const clash = out.find(
+          (q) =>
+            left < q.left + q.width &&
+            q.left < left + width &&
+            Math.abs(labelY - q.labelY) < LABEL_PITCH,
+        );
         if (!clash) break;
         labelY = clash.labelY + LABEL_PITCH;
       }
 
-      out.push({ ...p, labelY, flip, width });
+      out.push({ ...p, labelY, left, width });
     }
     return out.filter((p) => p.marker !== null);
-  }, [markers, origin, cx, cy, scale, radiusMetres, size.width]);
+  }, [points, selectedId, cx, cy, size.width]);
 
   const rings = [0.34, 0.67, 1];
 
@@ -130,24 +204,40 @@ export function SchematicMap({ origin, markers, selectedId, onSelect, radiusMetr
             );
           })}
 
-          {/* Dots first, so no label can obscure a true position. */}
-          {placed.map((p) => (
-            <View
-              key={`dot-${p.marker.id}`}
-              pointerEvents="none"
-              style={[
-                styles.dot,
-                {
-                  left: p.x - 5,
-                  top: p.y - 5,
-                  backgroundColor:
-                    p.marker.id === selectedId || p.marker.highlight ? c.accent : c.text,
-                  borderColor: c.surfaceAlt,
-                  opacity: p.marker.isOpen ? 1 : 0.5,
-                },
-              ]}
-            />
-          ))}
+          {/* Every marker gets a dot, labelled or not — the labels are rationed
+              but the geography is not. Dots come first so no label can obscure
+              a true position, and each is tappable in its own right, which is
+              what makes an unlabelled one reachable: tapping it selects the
+              place, and the selection is always granted a name. */}
+          {points.map((p) => {
+            const selected = p.marker.id === selectedId;
+            return (
+              <Touchable
+                key={`dot-${p.marker.id}`}
+                accessibilityRole="button"
+                accessibilityLabel={`${p.marker.label}, ${ratingLabel(p.marker.rating)}, ${formatDistance(p.marker.distance)} away`}
+                accessibilityState={{ selected }}
+                haptic="selection"
+                scaleTo={0.9}
+                onPress={() => onSelect(selected ? null : p.marker.id)}
+                style={[styles.dotTap, { left: p.x - DOT_TAP / 2, top: p.y - DOT_TAP / 2 }]}
+              >
+                <View
+                  style={[
+                    styles.dot,
+                    {
+                      backgroundColor: selected || p.marker.highlight ? c.accent : c.text,
+                      borderColor: c.surfaceAlt,
+                      // Same rule as the label below: dimming means "shut right
+                      // now", so a place whose hours nobody recorded stays at
+                      // full strength rather than greyed out on no evidence.
+                      opacity: p.marker.isOpen || p.marker.hoursUnknown ? 1 : 0.5,
+                    },
+                  ]}
+                />
+              </Touchable>
+            );
+          })}
 
           {/* You sit above every label — the one thing on this view that must
               never be obscured is where the user actually is. */}
@@ -178,10 +268,9 @@ export function SchematicMap({ origin, markers, selectedId, onSelect, radiusMetr
                 onPress={() => onSelect(selected ? null : p.marker.id)}
                 style={[
                   styles.label,
-                  p.flip
-                    ? { right: size.width - p.x + LABEL_GAP }
-                    : { left: p.x + LABEL_GAP },
                   {
+                    left: p.left,
+                    width: p.width,
                     top: p.labelY,
                     zIndex: selected ? 3 : p.marker.highlight ? 2 : 1,
                     // Dimming says "shut right now". A place whose hours nobody
@@ -215,7 +304,14 @@ const styles = StyleSheet.create({
   container: { flex: 1, overflow: 'hidden' },
   ring: { position: 'absolute', borderWidth: StyleSheet.hairlineWidth },
   ringLabel: { position: 'absolute', top: -9, width: 48, textAlign: 'center' },
-  dot: { position: 'absolute', width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
+  dotTap: {
+    position: 'absolute',
+    width: DOT_TAP,
+    height: DOT_TAP,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dot: { width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
   youWrap: { position: 'absolute', alignItems: 'center', zIndex: 6 },
   you: { width: 20, height: 20, borderRadius: 10, borderWidth: 4 },
   youChip: {

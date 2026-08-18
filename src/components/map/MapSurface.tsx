@@ -4,7 +4,7 @@ import MapView, { Circle, Marker, PROVIDER_GOOGLE, Region } from 'react-native-m
 
 import { isRated, ratingLabel } from '../../lib/score';
 import { useTheme } from '../../theme/theme';
-import { radius, space } from '../../theme/tokens';
+import { motion, radius, space } from '../../theme/tokens';
 import { Txt } from '../Txt';
 import { canRenderGoogleMaps } from './capability';
 import { darkMapStyle, lightMapStyle } from './darkMapStyle';
@@ -37,6 +37,7 @@ function GoogleMap({
   selectedId,
   onSelect,
   radiusMetres,
+  reachMetres,
   recenterKey,
 }: MapSurfaceProps) {
   const { c, isDark } = useTheme();
@@ -60,6 +61,22 @@ function GoogleMap({
     mapRef.current?.animateToRegion(regionFor(origin, radiusMetres), 420);
   }, [recenterKey, origin, radiusMetres]);
 
+  /**
+   * Re-frames when the reach changes, because `initialRegion` is only read once.
+   * Widening the walk filter otherwise added pins outside the visible frame and
+   * grew the circle past its edge, with the map still sitting at whatever zoom
+   * it mounted at — the user had to pinch out to discover the results existed.
+   * Skipped on the first run, which `initialRegion` already covers.
+   */
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    mapRef.current?.animateToRegion(regionFor(origin, radiusMetres), motion.base);
+  }, [origin, radiusMetres]);
+
   return (
     <MapView
       ref={mapRef}
@@ -78,10 +95,13 @@ function GoogleMap({
       rotateEnabled={false}
       onPress={() => onSelect(null)}
     >
-      {/* The search radius, so "nothing further out was considered" is visible. */}
+      {/* How far the walk filter reaches, so "nothing further out is shown" is
+          visible. Sized from the filter, never from the viewport — the two are
+          different numbers, and drawing the viewport here put pins outside a
+          circle that claimed to contain them all. */}
       <Circle
         center={{ latitude: origin.lat, longitude: origin.lng }}
-        radius={radiusMetres}
+        radius={reachMetres}
         strokeColor={c.accent + '55'}
         fillColor={c.accent + (isDark ? '10' : '0D')}
         strokeWidth={1}

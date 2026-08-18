@@ -97,6 +97,23 @@ one also starves `way` results, since Overpass emits every node first.
 it cannot in Expo Go on iOS or on web, and those fall back to `SchematicMap`,
 never to Apple Maps.
 
+**2b. The map frames the results; the circle draws the filter.**
+Two different numbers, and one constant used for both was the bug. `reachMetres`
+is the walk filter converted (`walkRadiusMetres`, capped at `SEARCH_RADIUS_M`)
+and is what the circle claims. `radiusMetres` is the viewport, fitted to the
+farthest match and bounded by the reach — a dense block puts all 78 matches
+inside 300 m, and framing the filter's full 1.6 km squeezed them into a knot at
+the centre of two empty kilometres. `MapSurface` re-frames when either changes;
+`initialRegion` alone is read once, so widening the filter used to add pins
+outside the visible frame.
+
+`SchematicMap` rations *labels*, never dots: `LABEL_BUDGET` names the
+best-ranked few (plus the selection, always), and every other marker keeps a
+tappable dot. Labelling all 78 turned the de-collision into one vertical column
+of names running off the screen, each displaced so far from its dot that the
+view stopped answering "what is near me". Labels are also clamped inside the
+frame — the container clips, and a flip alone still let long names overflow.
+
 **3. Ranking is inspectable.**
 `buildSuggestion()` returns a `breakdown` whose numbers are the ones the sort
 used. `ScoreBreakdown.tsx` displays them; never recompute for display. Weights
@@ -142,6 +159,24 @@ nothing rather than putting real Google tiles under an invented business name.
 The Embed API returns no data — ranking still depends entirely on Places.
 `EmbedMap` is inert (`pointerEvents="none"`): it lives in a ScrollView, where a
 pannable map swallows the scroll gesture. The card handles the handoff.
+
+**5c. A real place must reach Google under its own name, keyless included.**
+No key is the *default* state, since OSM needs none, so both handoffs have to
+work without one. Two id kinds, two URLs, and sending an OSM place down the
+Google-id path is the bug that keeps recurring: a bare `lat,lng` opens a
+*dropped pin*, with no name, no hours and no reviews — the exact screen the user
+tapped for. `maps.ts` `placeUrl()` sends `query_place_id` for Google ids and a
+name search anchored to `/@lat,lng,18z` for OSM ones, where the viewport is what
+stops a chain name resolving to a branch across town. `embed.ts` mirrors this:
+`embed/v1/place` with `place_id:`, `embed/v1/search` with the name and a locked
+`center`. Directions stay coordinate-only on purpose — routing wants the exact
+point, not a name that might match elsewhere.
+
+`<PlaceMap>` never renders nothing for a real place. Without a usable embed key
+it falls back to `<SchematicMap>` (true bearing and distance) and always carries
+the "Photos and reviews on Google Maps" affordance, because ratings and reviews
+are precisely what a keyless source cannot supply — the way to them has to be
+named, not implied by a tappable card.
 
 ## Design system
 

@@ -78,7 +78,11 @@ export default function NowScreen() {
         <Txt variant="label" tone="faint" uppercase numberOfLines={1} style={{ flexShrink: 1 }}>
           {WEEKDAYS[now.getDay()]} · {formatClock(now)}
         </Txt>
-        {status === 'ready' && !isLiveData ? <SampleDataBadge compact /> : null}
+        {/* `source` still reads "sample" until the first fetch lands, so an
+            unguarded badge flashed SAMPLE over the loading skeletons of a
+            perfectly real result set — the one claim this app must never make
+            carelessly. */}
+        {status === 'ready' && !loading && !isLiveData ? <SampleDataBadge compact /> : null}
       </View>
 
       {/* The area name moved out of the timestamp line and into a control: it

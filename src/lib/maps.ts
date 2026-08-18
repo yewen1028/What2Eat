@@ -61,6 +61,9 @@ export function directionsUrl(place: Place, origin?: Coords | null): string {
   return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
 
+/** Close enough to read the block a place sits on, for an anchored search. */
+const NEIGHBOURHOOD_ZOOM = 18;
+
 /**
  * The place's own Google Maps page, rather than a route to it.
  *
@@ -68,15 +71,42 @@ export function directionsUrl(place: Place, origin?: Coords | null): string {
  * deliberately non-interactive, so this is how a user gets to pan, read reviews
  * or check the street view. Routing is a separate, more committal action and
  * keeps its own button.
+ *
+ * The two id kinds need two different URLs, and sending both down the
+ * coordinate path was why this handoff felt broken: `query=lat,lng` opens a
+ * *dropped pin*, which carries no name, no hours and no reviews. That is the
+ * one screen a user tapping "read the reviews" came for, and every keyless
+ * session — the app's default, since OpenStreetMap needs no key — got it.
  */
 export function placeUrl(place: Place): string | null {
   if (!isRoutable(place)) return null;
 
-  const params = new URLSearchParams({ api: '1', query: coord(place.coords) });
   const placeId = googlePlaceId(place);
-  if (placeId) params.set('query_place_id', placeId);
+  if (placeId) {
+    // The exact listing, by id. Google resolves its own page from this, so the
+    // name, hours and reviews are guaranteed to be the ones we ranked.
+    const params = new URLSearchParams({
+      api: '1',
+      query: coord(place.coords),
+      query_place_id: placeId,
+    });
+    return `https://www.google.com/maps/search/?${params.toString()}`;
+  }
 
-  return `https://www.google.com/maps/search/?${params.toString()}`;
+  /**
+   * OpenStreetMap listings have no Google id, so the name has to do the work.
+   * The `@lat,lng,zoom` viewport is what keeps that honest: it anchors the
+   * search to the block the restaurant is actually on, so a chain name resolves
+   * to *this* branch rather than one across town. The address is folded into
+   * the query when OSM tagged one, so both signals point the same way, and the
+   * worst case is a search centred on the correct spot rather than a wrong
+   * listing.
+   */
+  const query = [place.name, place.address].filter(Boolean).join(', ');
+  return (
+    `https://www.google.com/maps/search/${encodeURIComponent(query)}` +
+    `/@${place.coords.lat},${place.coords.lng},${NEIGHBOURHOOD_ZOOM}z`
+  );
 }
 
 /** Opens the place's Google Maps page. Returns false when it is not a real one. */

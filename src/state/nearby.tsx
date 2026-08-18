@@ -78,8 +78,15 @@ interface NearbyValue {
 
 const NearbyContext = createContext<NearbyValue | null>(null);
 
-/** How far out we ask the provider to look. */
-const SEARCH_RADIUS_M = 2500;
+/**
+ * How far out we ask the provider to look.
+ *
+ * Exported because it is a real ceiling on the results, not just a fetch
+ * detail: the widest walk filter (40 min, 3.2 km) reaches past it, so anything
+ * drawing "how far we looked" has to cap itself here or it claims coverage the
+ * app never asked for.
+ */
+export const SEARCH_RADIUS_M = 2500;
 
 /**
  * Walk minutes and the proximity weight are quoted to the minute, and the whole
