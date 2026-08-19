@@ -25,6 +25,12 @@ export interface EmbedMapProps {
   /** Accessible name for the frame, e.g. "Map of Nasi Kandar Pelita". */
   title: string;
   height: number;
+  /**
+   * The frame could not load — no network, a blocked request, or a key without
+   * the Maps Embed API enabled. Lets the caller fall back to something that
+   * still answers the question rather than leaving an empty rectangle.
+   */
+  onFailed?: () => void;
 }
 
 export interface MapSurfaceProps {

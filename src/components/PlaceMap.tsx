@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { placeEmbedUrl } from '../lib/embed';
@@ -49,10 +49,14 @@ export function PlaceMap({ place }: { place: Place }) {
   const { c } = useTheme();
   const { profile } = useProfile();
   const { origin } = useNearby();
+  const [embedFailed, setEmbedFailed] = useState(false);
 
   if (isSamplePlace(place)) return null;
 
-  const url = placeEmbedUrl(place, profile.placesApiKey);
+  // A key that lacks the Maps Embed API, or a blocked request, leaves an empty
+  // rectangle under a heading promising a map. The schematic still answers
+  // "which way and how far", so it is the better failure.
+  const url = embedFailed ? null : placeEmbedUrl(place, profile.placesApiKey);
 
   return (
     <View style={{ marginTop: space['2xl'] }}>
@@ -65,7 +69,12 @@ export function PlaceMap({ place }: { place: Place }) {
       >
         <View style={[styles.frame, { borderColor: c.border, backgroundColor: c.surfaceAlt }]}>
           {url ? (
-            <EmbedMap url={url} title={`Map showing ${place.name}`} height={MAP_HEIGHT} />
+            <EmbedMap
+              url={url}
+              title={`Map showing ${place.name}`}
+              height={MAP_HEIGHT}
+              onFailed={() => setEmbedFailed(true)}
+            />
           ) : (
             <SchematicFallback place={place} origin={origin} />
           )}

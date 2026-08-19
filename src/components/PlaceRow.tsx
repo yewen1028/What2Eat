@@ -1,13 +1,14 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
+import { SharedValue } from 'react-native-reanimated';
 
 import { ratingLabel } from '../lib/score';
 import { Suggestion } from '../lib/types';
 import { useTheme } from '../theme/theme';
 import { fonts, radius, space } from '../theme/tokens';
-import { OpenBadge, PriceLevel, Rating } from './Badges';
-import { PlaceImage } from './PlaceImage';
+import { hasPriceInfo, OpenBadge, PriceLevel, Rating } from './Badges';
+import { ParallaxImage } from './ParallaxImage';
 import { SaveButton } from './SaveButton';
 import { Touchable } from './Touchable';
 import { Txt } from './Txt';
@@ -17,9 +18,11 @@ interface Props {
   /** 1-based position. Rendered as an editorial numeral, not a badge. */
   rank?: number;
   showDivider?: boolean;
+  /** Parent list's scroll offset, which drives the thumbnail's drift. */
+  scrollY?: SharedValue<number>;
 }
 
-export function PlaceRow({ suggestion, rank, showDivider = true }: Props) {
+export function PlaceRow({ suggestion, rank, showDivider = true, scrollY }: Props) {
   const { c } = useTheme();
   const router = useRouter();
   const { place } = suggestion;
@@ -37,7 +40,12 @@ export function PlaceRow({ suggestion, rank, showDivider = true }: Props) {
       ]}
     >
       <View>
-        <PlaceImage uri={place.photo} seed={place.name} style={styles.thumb} />
+        <ParallaxImage
+          uri={place.photo}
+          seed={place.name}
+          style={styles.thumb}
+          scrollY={scrollY}
+        />
         {rank !== undefined ? (
           <View style={[styles.rank, { backgroundColor: c.bg, borderColor: c.border }]}>
             <Txt style={{ fontFamily: fonts.display, fontSize: 13, color: c.textMuted }}>{rank}</Txt>
@@ -58,8 +66,13 @@ export function PlaceRow({ suggestion, rank, showDivider = true }: Props) {
 
         <View style={styles.metaRow}>
           <Rating rating={place.rating} reviewCount={place.reviewCount} compact />
-          <View style={{ width: space.md }} />
-          <PriceLevel level={place.priceLevel} priceText={place.priceText} />
+          {/* The gap belongs to the price, so it goes when the price does. */}
+          {hasPriceInfo(place) ? (
+            <>
+              <View style={{ width: space.md }} />
+              <PriceLevel level={place.priceLevel} priceText={place.priceText} />
+            </>
+          ) : null}
         </View>
 
         <View style={[styles.metaRow, { marginTop: 6 }]}>

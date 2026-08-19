@@ -212,11 +212,11 @@ export default function NowScreen() {
                 <Notice
                   text={
                     warning ??
-                    'These are real restaurants from OpenStreetMap, ranked by distance and how well they suit this hour. It publishes no ratings, so ranking leans on the rest. Add a Google Places key for ratings and reviews.'
+                    'These are real restaurants from OpenStreetMap, ranked by distance and how well they suit this hour. It publishes no ratings and almost no photos, so cards show a tinted initial rather than a stock picture of somewhere else. Add a Google Places key for ratings, reviews and real photos.'
                   }
                 />
                 <Button
-                  label="Add a Places key for ratings"
+                  label="Add a Places key for photos and ratings"
                   variant="secondary"
                   iconName="key-outline"
                   onPress={() => router.push('/profile')}
@@ -257,6 +257,7 @@ export default function NowScreen() {
                     suggestion={s}
                     rank={i + 2}
                     showDivider={i < runnersUp.length - 1}
+                    scrollY={scrollY}
                   />
                 ))}
                 <Button

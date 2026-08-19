@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '../../src/components/Button';
@@ -52,6 +53,13 @@ export default function NearbyScreen() {
   } = useNearby();
 
   const sorted = useMemo(() => sortSuggestions(suggestions, sort), [suggestions, sort]);
+
+  // Drives the thumbnails' drift. The list owns it, so every row reads the same
+  // offset and none of them has to know its own index.
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
 
   if (status !== 'ready') {
     return (
@@ -159,8 +167,10 @@ export default function NearbyScreen() {
           ))}
         </View>
       ) : (
-        <FlatList
+        <Animated.FlatList
           data={sorted}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           keyExtractor={(s) => s.place.id}
           contentContainerStyle={[styles.list, { paddingBottom: space['3xl'] }]}
           showsVerticalScrollIndicator={false}
@@ -172,6 +182,7 @@ export default function NearbyScreen() {
               suggestion={item}
               rank={sort === 'best' ? index + 1 : undefined}
               showDivider={index < sorted.length - 1}
+              scrollY={scrollY}
             />
           )}
           ListHeaderComponent={

@@ -292,6 +292,43 @@ const AMENITY_LABELS: Record<string, string> = {
   restaurant: 'Restaurant',
 };
 
+/**
+ * Wikimedia's redirect from a file *name* to the file itself, resized.
+ *
+ * `Special:FilePath` needs no API call and no key, which is the whole appeal:
+ * one URL built from a tag, straight into `<Image>`.
+ */
+const COMMONS_FILE = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
+
+/**
+ * A photo, only if OSM actually names one.
+ *
+ * Coverage is thin — 3 of 653 places around Bukit Bintang — so this is not the
+ * answer to "why are there no pictures"; that answer is a Places key, since
+ * Google is the only source with a photo for most restaurants. It is still
+ * worth reading, because these are photographs of *this* business, contributed
+ * against *this* listing. The alternative on offer is stock food photography,
+ * which would attach an image of somewhere else to a named real restaurant —
+ * the same fabrication as an invented rating, and more convincing.
+ *
+ * `image` is usually a direct URL but is often a Commons file name instead.
+ * `Category:` values are rejected: a category is a bag of files, not a picture,
+ * and guessing a member of it would pick an arbitrary photo.
+ */
+function toPhoto(tags: Record<string, string>): string | undefined {
+  const direct = tags.image?.trim();
+  if (direct && /^https:\/\//i.test(direct)) return direct;
+
+  // http:// is dropped rather than upgraded: iOS blocks insecure loads by
+  // default, so it would render as a silent failure.
+  for (const candidate of [direct, tags.wikimedia_commons?.trim()]) {
+    const file = candidate?.match(/^File:(.+)$/i)?.[1];
+    if (file) return `${COMMONS_FILE}${encodeURIComponent(file)}?width=800`;
+  }
+
+  return undefined;
+}
+
 function toAddress(tags: Record<string, string>): string {
   const street = [tags['addr:housenumber'], tags['addr:street']].filter(Boolean).join(' ');
   const parts = [street, tags['addr:suburb'], tags['addr:city']].filter(Boolean);
@@ -331,6 +368,7 @@ function toPlace(el: OverpassElement): Place | null {
     priceLevel: undefined,
     coords: { lat, lng: lon },
     address: toAddress(tags),
+    photo: toPhoto(tags),
     hours: hours ?? Array.from({ length: 7 }, () => []),
     hoursUnknown: hours === null,
     mealPeriods: toMealPeriods(tags),
@@ -444,6 +482,7 @@ function dedupe(places: Place[]): Place[] {
       hours: primary.hoursUnknown ? secondary.hours : primary.hours,
       hoursUnknown: primary.hoursUnknown && secondary.hoursUnknown,
       address: primary.address || secondary.address,
+      photo: primary.photo ?? secondary.photo,
       priceLevel: primary.priceLevel ?? secondary.priceLevel,
       vegetarianFriendly: primary.vegetarianFriendly ?? secondary.vegetarianFriendly,
     };

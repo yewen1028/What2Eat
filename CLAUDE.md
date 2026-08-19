@@ -97,6 +97,22 @@ one also starves `way` results, since Overpass emits every node first.
 it cannot in Expo Go on iOS or on web, and those fall back to `SchematicMap`,
 never to Apple Maps.
 
+**2a. `canRenderGoogleMaps` requires a Maps SDK *key*, not just a platform.**
+The Google Maps SDK for iOS draws nothing at all until `provideAPIKey` runs, so
+a development build with no `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` rendered an empty
+view where the schematic should have been — "the map doesn't load". The check
+reads the resolved `ios.config.googleMapsApiKey` / `android.config.googleMaps`
+from the manifest, not just the env var, because a build made elsewhere carries
+the key in the manifest only. Android in Expo Go is the exception: it supplies
+its own key.
+
+`EmbedMap`'s `originWhitelist` must cover `googleapis.com`, `gstatic.com` and
+`ggpht.com` alongside `google.com`. It gates *navigation*, and the embed pulls
+its tiles and sprites from those hosts — whitelisting only `google.com` let the
+frame open and then blocked the map inside it. If the embed fails anyway (a key
+without the Maps Embed API enabled), `onFailed` drops `PlaceMap` back to the
+schematic rather than leaving an empty rectangle.
+
 **2b. The map frames the results; the circle draws the filter.**
 Two different numbers, and one constant used for both was the bug. `reachMetres`
 is the walk filter converted (`walkRadiusMetres`, capped at `SEARCH_RADIUS_M`)
@@ -195,6 +211,22 @@ Copy rules: no em-dashes or en-dashes in user-facing strings (ranges use a
 hyphen: `RM 8-18`, `12:00 - 15:00`). Never leak internal period keys into copy
 — `late` renders as "supper" via `MEAL_PERIOD_LABELS`.
 
+**Photos come from Google, or they do not come.** `providers/osm.ts` reads a
+real photo from the `image` / `wikimedia_commons` tags where one exists, but
+coverage is about 3 in 650 — zero in the nearest 80 around Bukit Bintang — so
+the designed fallback in `PlaceImage` (tinted field, place's initial) is the
+normal case, not an error state. Do not fill the gap with stock food
+photography: an image of somewhere else under a real restaurant's name is the
+same fabrication as an invented rating, and more convincing. `Category:` values
+are rejected for the same reason — a category is a bag of files, so picking one
+would be guessing.
+
+- Parallax lives in `<ParallaxImage>` (lists) and hand-rolled styles in
+  `HeroPick` / `place/[id]`. It reads position from `measure()` driven by the
+  list's `scrollY`, because rows recycle and an `onLayout` y is relative to the
+  cell, not the content. It runs **only when there is a real photo** — drifting
+  the flat fallback moves the centred initial off centre and buys nothing — and
+  **only when `useReducedMotion()` is false**.
 - All tappables go through `<Touchable>` (press scale + opacity + haptics).
   Disabled dimming lives **inside** `useAnimatedStyle` — Reanimated writes
   opacity inline and would override a static style set after it.

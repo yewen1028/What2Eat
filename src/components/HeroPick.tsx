@@ -9,6 +9,7 @@ import Animated, {
   interpolate,
   SharedValue,
   useAnimatedStyle,
+  useReducedMotion,
 } from 'react-native-reanimated';
 
 import { formatDistance } from '../lib/geo';
@@ -44,9 +45,17 @@ export function HeroPick({ suggestion, scrollY, generation }: Props) {
   const router = useRouter();
   const { place } = suggestion;
 
+  // Parallax is decoration, and decoration that moves is exactly what
+  // "reduce motion" is asking us to stop doing. The image keeps its overscanned
+  // frame either way, so nothing shifts in the layout when it holds still.
+  const reduceMotion = useReducedMotion();
   const parallax = useAnimatedStyle(() => ({
     transform: [
-      { translateY: interpolate(scrollY.value, [-200, 0, 400], [-40, 0, PARALLAX_OVERSCAN]) },
+      {
+        translateY: reduceMotion
+          ? 0
+          : interpolate(scrollY.value, [-200, 0, 400], [-40, 0, PARALLAX_OVERSCAN]),
+      },
     ],
   }));
 

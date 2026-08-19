@@ -1,12 +1,13 @@
 import { useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Animated, { SharedValue, useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { hasPriceInfo, OpenBadge, PriceLevel, Rating } from '../../src/components/Badges';
 import { Button } from '../../src/components/Button';
 import { EmptyState, SampleDataBadge, SCREEN_PADDING } from '../../src/components/Layout';
-import { PlaceImage } from '../../src/components/PlaceImage';
+import { ParallaxImage } from '../../src/components/ParallaxImage';
 import { PlaceRow } from '../../src/components/PlaceRow';
 import { SaveButton } from '../../src/components/SaveButton';
 import { RowSkeleton } from '../../src/components/Skeleton';
@@ -36,6 +37,12 @@ export default function SavedScreen() {
   );
 
   const sampleCount = useMemo(() => items.filter(isSamplePlace).length, [items]);
+
+  // Drives the thumbnails' drift; the list owns the offset, the rows read it.
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
 
   // Bookmarks come off disk a tick after mount. Showing the "nothing saved"
   // empty state in that gap tells returning users their list is gone.
@@ -69,16 +76,27 @@ export default function SavedScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: c.bg, paddingTop: insets.top + space.xl }]}>
       <Header count={items.length} sampleCount={sampleCount} />
-      <FlatList
+      <Animated.FlatList
         data={items}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         keyExtractor={(p) => p.id}
         contentContainerStyle={[styles.list, { paddingBottom: space['3xl'] }]}
         showsVerticalScrollIndicator={false}
         renderItem={({ item, index }) =>
           rows ? (
-            <PlaceRow suggestion={rows[index]} showDivider={index < items.length - 1} />
+            <PlaceRow
+              suggestion={rows[index]}
+              showDivider={index < items.length - 1}
+              scrollY={scrollY}
+            />
           ) : (
-            <SavedRowWithoutLocation place={item} showDivider={index < items.length - 1} now={now} />
+            <SavedRowWithoutLocation
+              place={item}
+              showDivider={index < items.length - 1}
+              now={now}
+              scrollY={scrollY}
+            />
           )
         }
       />
@@ -111,10 +129,12 @@ function SavedRowWithoutLocation({
   place,
   showDivider,
   now,
+  scrollY,
 }: {
   place: Place;
   showDivider: boolean;
   now: Date;
+  scrollY?: SharedValue<number>;
 }) {
   const { c } = useTheme();
   const router = useRouter();
@@ -131,7 +151,7 @@ function SavedRowWithoutLocation({
         showDivider && { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: c.border },
       ]}
     >
-      <PlaceImage uri={place.photo} seed={place.name} style={styles.thumb} />
+      <ParallaxImage uri={place.photo} seed={place.name} style={styles.thumb} scrollY={scrollY} />
       <View style={styles.plainBody}>
         <Txt variant="heading" numberOfLines={2}>
           {place.name}

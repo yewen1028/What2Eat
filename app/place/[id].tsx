@@ -7,6 +7,7 @@ import Animated, {
   interpolate,
   useAnimatedScrollHandler,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -49,22 +50,31 @@ export default function PlaceScreen() {
     scrollY.value = e.contentOffset.y;
   });
 
-  /** Image drifts at half speed and scales up on over-pull. */
-  const heroStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateY: interpolate(
-          scrollY.value,
-          [-HERO_HEIGHT, 0, HERO_HEIGHT],
-          [-HERO_HEIGHT / 2, 0, HERO_HEIGHT * 0.5],
-          Extrapolation.CLAMP,
-        ),
-      },
-      {
-        scale: interpolate(scrollY.value, [-HERO_HEIGHT, 0], [1.6, 1], Extrapolation.CLAMP),
-      },
-    ],
-  }));
+  /**
+   * Image drifts at half speed and scales up on over-pull — unless the user has
+   * asked for less motion, in which case it simply stays put. The title bar's
+   * cross-fade is kept: it is a state change the user needs to see, not
+   * decoration.
+   */
+  const reduceMotion = useReducedMotion();
+  const heroStyle = useAnimatedStyle(() => {
+    if (reduceMotion) return { transform: [{ translateY: 0 }, { scale: 1 }] };
+    return {
+      transform: [
+        {
+          translateY: interpolate(
+            scrollY.value,
+            [-HERO_HEIGHT, 0, HERO_HEIGHT],
+            [-HERO_HEIGHT / 2, 0, HERO_HEIGHT * 0.5],
+            Extrapolation.CLAMP,
+          ),
+        },
+        {
+          scale: interpolate(scrollY.value, [-HERO_HEIGHT, 0], [1.6, 1], Extrapolation.CLAMP),
+        },
+      ],
+    };
+  });
 
   /** The compact title bar only appears once the big one has scrolled away. */
   const titleBarStyle = useAnimatedStyle(() => ({

@@ -14,13 +14,14 @@ import { EmbedMapProps } from './types';
  * over it, which strands the user mid-page. The map's job here is to say *where*
  * the place is; the card around it handles opening the real thing.
  */
-export function EmbedMap({ url, title, height }: EmbedMapProps) {
+export function EmbedMap({ url, title, height, onFailed }: EmbedMapProps) {
   return (
     <iframe
       src={url}
       title={title}
       loading="lazy"
       referrerPolicy="no-referrer-when-downgrade"
+      onError={onFailed}
       style={{ border: 0, width: '100%', height, display: 'block', pointerEvents: 'none' }}
     />
   );
